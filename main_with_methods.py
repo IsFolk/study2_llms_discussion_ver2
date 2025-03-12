@@ -10,8 +10,9 @@ import os
 from dotenv import load_dotenv
 import os
 
-load_dotenv()  # 讀取 .env 文件
-api_key = os.getenv("OPENAI_API_KEY")
+# load_dotenv()  # 讀取 .env 文件
+# api_key = os.getenv("OPENAI_API_KEY")
+api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
 
 question = "風箏除了娛樂，還能用什麼其他創意用途？"
 

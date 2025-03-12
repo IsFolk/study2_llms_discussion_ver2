@@ -11,8 +11,11 @@ from dotenv import load_dotenv
 import textwrap
 import time
 
-load_dotenv()  # 讀取 .env 文件
-api_key = os.getenv("OPENAI_API_KEY")
+# load_dotenv()  # 讀取 .env 文件
+# api_key = os.getenv("OPENAI_API_KEY")
+
+# 從 st.secrets 讀取 API Key
+api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
 
 question = "風箏除了娛樂，還能用什麼其他創意用途？"
 
@@ -40,7 +43,7 @@ llm_config = {
     "config_list": [
         {
             "model": selected_model,
-            "api_key": None,
+            "api_key": api_key,
             "base_url": base_url,
             "temperature": temperature,
             "stream": True
