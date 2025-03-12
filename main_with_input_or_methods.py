@@ -169,11 +169,11 @@ async def single_round_discussion(round_num, agents, user_proxy):
     if round_num == 0:
         discussion_message = (
             f"這是第0輪，{question}，"
-            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
         discussion_message_for_showing = (
             f"這是第0輪，{question}，"
-            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
     else:
         last_round_response = {}
