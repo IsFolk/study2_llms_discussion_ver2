@@ -11,6 +11,9 @@ from dotenv import load_dotenv
 import textwrap
 import time
 
+import os
+os.environ["AUTOGEN_USE_DOCKER"] = "0"
+
 # load_dotenv()  # 讀取 .env 文件
 # api_key = os.getenv("OPENAI_API_KEY")
 
