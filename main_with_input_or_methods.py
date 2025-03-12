@@ -8,7 +8,8 @@ import plotly.express as px
 import logging
 import os
 from dotenv import load_dotenv
-import os
+import textwrap
+import time
 
 load_dotenv()  # 讀取 .env 文件
 api_key = os.getenv("OPENAI_API_KEY")
@@ -122,7 +123,12 @@ if "proxy_message_showed" not in st.session_state:
     st.session_state.proxy_message_showed = False
 if "selected_technique" not in st.session_state:
     st.session_state.selected_technique = {}
-
+if "idea_options" not in st.session_state:
+    st.session_state.idea_options = {}
+if "idea_list" not in st.session_state:
+    st.session_state.idea_list = []
+if "selected_persistent_ideas" not in st.session_state:
+    st.session_state.selected_persistent_ideas = []
 
 # 初始化每輪的完成狀態
 rounds = 99  # 假設總輪數是 99，可以根據需求調整
@@ -160,11 +166,11 @@ async def single_round_discussion(round_num, agents, user_proxy):
     if round_num == 0:
         discussion_message = (
             f"這是第0輪，{question}，"
-            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
         discussion_message_for_showing = (
             f"這是第0輪，{question}，"
-            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
     else:
         last_round_response = {}
@@ -182,8 +188,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
             f"💡 **使用者選擇的創意思考技術：**「{st.session_state.selected_technique.get(round_num-1, "")}」\n\n"
             
             f" 上一輪討論紀錄: {last_round_response}\n"
-            f"📝 **請針對上輪討論進行延伸，並基於創意思考技術做延伸！**\n\n "
-            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            f"📝 **請針對上輪討論及使用者選擇的創意進行延伸，並基於創意思考技術做延伸！**\n\n "
+            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
 
         discussion_message_for_showing = (
@@ -191,8 +197,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # f"📌 **討論主題：** {question}\n\n"
             f"💡 **使用者選擇的創意：**「{st.session_state.user_inputs.get(round_num-1, "")}」\n\n"
             f"💡 **使用者選擇的創意思考技術：**「{st.session_state.selected_technique.get(round_num-1, "")}」\n\n"
-            f"📝 **請針對上輪討論進行延伸，並基於創意思考技術做延伸！**\n\n "
-            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            f"📝 **請針對上輪討論及使用者選擇的創意進行延伸，並基於創意思考技術做延伸！**\n\n "
+            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
 
 
@@ -240,31 +246,24 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 if agent_name_each in ["User", "Assistant"]:
                     continue
                 this_round_response[agent_name_each] = response
+
             category_prompt = (
                 f"你是一個擅長資訊統整的 AI，負責整理來自不同 AI 助手的回應，並確保分類清晰、有條理。"
-                f"\n\n💡 **這些 AI 來自不同領域，包括：**"
-                f"\n🔹 Normal Assistant 1（{agents['Normal Assistant 1'].system_message}）"
-                f"\n🔹 Normal Assistant 2（{agents['Normal Assistant 2'].system_message}）"
-                # f"\n🔹 Convergence Judge（{agents['Convergence Judge'].system_message}）"
                 f"\n\n📌 **這一輪的討論紀錄：**"
                 f"\n{this_round_response}"
                 f"\n\n**請按照以下要求統整資訊：**"
-                f"\n1️⃣ **標記 AI 來源**：請在每個觀點前標示該 AI 的名稱，例如【Normal Assistant 1】、【Normal Assistant 2】"
+                f"\n1️⃣ **標記 AI 來源**：在每個觀點前標示該 AI 的名稱，例如【Normal Assistant 1】、【Normal Assistant 2】"
                 f"\n2️⃣ **主動判斷分類**：根據內容自動選擇最合適的分類，例如「技術創新」、「市場趨勢」、「挑戰與風險」、「未來應用」等"
                 f"\n3️⃣ **避免重複**：若多個 AI 提出相似觀點，請合併處理，並標示不同 AI 的補充意見"
                 f"\n4️⃣ **總結主要發現**：在最後提供 2-3 句話的摘要，歸納討論的核心重點"
-                f"\n\n📌 **格式範例：**"
-                f"\n【技術創新】"
-                f"\n- 【Normal Assistant 1】提出『風力發電風箏』，強調其能源轉換效率"
-                f"\n- 【Normal Assistant 2】補充該技術可搭配 AI 自適應飛行，提高穩定性"
-                f"\n- 【Convergence Judge】提醒該技術仍需進一步測試穩定性"
-                f"\n\n【市場趨勢】"
-                f"\n- 【Normal Assistant 1】認為 NFT 風箏具市場潛力，因為收藏品市場正在成長"
-                f"\n- 【Convergence Judge】質疑其長期價值，認為 NFT 市場的不確定性較高"
-                f"\n\n📌 **總結**"
-                f"\n本輪討論顯示，風力發電風箏在技術上有潛力，但仍需解決穩定性問題。NFT 風箏在市場潛力上存在爭議，值得進一步探討。"
-                f"\n\n👉 **請告訴我你想進一步探討哪個部分？我可以提供更多細節！**"
+                f"\n5️⃣ **從AI觀點中整理出可選 Idea，讓用戶可以勾選，格式如下：**"
+                f"\n✅ Idea 1: 風箏可用...（請填入 Idea 內容）"
+                f"\n✅ Idea 2: 風箏可用...（請填入 Idea 內容）"
+                f"\n✅ Idea 3: 風箏可用...（請填入 Idea 內容）"
+                f"\n✅ Idea N: 風箏可用...（請填入 Idea 內容）"
+
             )
+
 
             response = await agent.a_initiate_chat(user_proxy, message=category_prompt, max_turns=1)
             response = response.chat_history[-1]["content"].strip()
@@ -276,6 +275,15 @@ async def single_round_discussion(round_num, agents, user_proxy):
             st.session_state.messages.append({"role": agent_name, "content": response})
             
             mark_agent_completed(round_num, agent_name)
+
+            # **解析 Assistant 產出的可選 Idea**
+            idea_options = re.findall(r"✅ Idea \d+: (.+)", response)
+            st.session_state.idea_options[f"round_{round_num}"] = idea_options
+
+            for idea in idea_options:
+                if idea not in st.session_state.idea_list:
+                    st.session_state.idea_list.append(idea)
+
             # st.write(f"登記 {agent_name} 完成")
         elif agent_name in ["Normal Assistant 1", "Normal Assistant 2"]:
             discussion_message_temp = discussion_message + (
@@ -349,40 +357,58 @@ if st.session_state.discussion_started and st.session_state.round_num <= rounds:
 
     if not st.session_state[f"round_{round_num}_input_completed"]:
 
-        # **輸入原始 Idea**
-        # idea_input = st.text_area("請輸入您的 Idea：", key="idea_input")
+        # **透過 st.radio() 限制只能選擇一種輸入方式**
+        input_method = st.radio("請選擇輸入方式：", ["輸入創意點子", "選擇創意思考技術"])
 
-        # **輸入選定的 Idea**
-        user_inputs = st.text_area("請輸入選定的 Idea（可選）：", 
-                                   value="")
+        if input_method == "輸入創意點子":
+            current_input = st.text_area(f"請輸入第 {st.session_state.round_num} 輪的想法：")
 
-        # **選擇創意思考技術**
-        techniques = [
-            "請選擇一種創意思考技術",  # 預設選項
-            "SCAMPER - Substitute（替代）",
-            "SCAMPER - Combine（結合）",
-            "SCAMPER - Modify（修改）",
-            "SCAMPER - Put to another use（變更用途）",
-            "SCAMPER - Eliminate（刪除）",
-            "SCAMPER - Reverse（反轉）",
-            "六頂思考帽 - 白帽（事實）",
-            "六頂思考帽 - 黑帽（風險）",
-            "六頂思考帽 - 黃帽（優勢）",
-            "六頂思考帽 - 綠帽（創意）",
-            "TRIZ - 矛盾解決",
-            "TRIZ - 功能分離",
-            "TRIZ - 逆向思考",
-            "TRIZ - 自適應性",
-            "10x Thinking（Google 10 倍思維）",
-            "First Principles Thinking（第一性原則）"
-        ]
+        # **方式 2：使用 selectbox 選擇創意思考技術**
+        elif input_method == "選擇創意思考技術":
+            # 輸入選定的 Idea
+            # user_inputs = st.text_area("請輸入選定的 Idea（可選）：", 
+            #                         value="")
+            # st.write(st.session_state.idea_options)
 
-        selected_technique = st.selectbox("請選擇創意思考技術：", techniques, index=0)
+            if st.session_state.idea_options.get(f"round_{round_num}", []):
+                idea_options = st.session_state.idea_options.get(f"round_{round_num}", [])
+                st.write("### 🔍 AI 產生的創意點子，你可以選擇要延伸的 Idea")
+                user_inputs = st.multiselect("請選擇你想延伸的 Idea：", idea_options)
+
+                # if st.button("確認選擇"):
+                #     st.session_state.selected_ideas_for_next_round = selected_ideas
+                #     st.success(f"你選擇了這些 Idea：{selected_ideas}")
+                #     st.rerun()
+
+            
+
+            # **選擇創意思考技術**
+            techniques = [
+                "請選擇一種創意思考技術",  # 預設選項
+                "SCAMPER - Substitute（替代）",
+                "SCAMPER - Combine（結合）",
+                "SCAMPER - Modify（修改）",
+                "SCAMPER - Put to another use（變更用途）",
+                "SCAMPER - Eliminate（刪除）",
+                "SCAMPER - Reverse（反轉）",
+                "六頂思考帽 - 白帽（事實）",
+                "六頂思考帽 - 黑帽（風險）",
+                "六頂思考帽 - 黃帽（優勢）",
+                "六頂思考帽 - 綠帽（創意）",
+                "TRIZ - 矛盾解決",
+                "TRIZ - 功能分離",
+                "TRIZ - 逆向思考",
+                "TRIZ - 自適應性",
+                "10x Thinking（Google 10 倍思維）",
+                "First Principles Thinking（第一性原則）"
+            ]
+
+            selected_technique = st.selectbox("請選擇創意思考技術：", techniques, index=0)
 
         # **按鈕送出輸入**
-        if st.button("送出選擇") and selected_technique != "請選擇一種創意思考技術" and user_inputs.strip():
+        if st.button("送出選擇") and selected_technique != "請選擇一種創意思考技術" and user_inputs:
             # 保存 Idea 和 Selected Idea
-            st.session_state.user_inputs[round_num] = user_inputs
+            st.session_state.user_inputs[round_num] = st.session_state.user_inputs[round_num] = ", ".join(user_inputs)
             st.session_state.selected_technique[round_num] = selected_technique
 
 
@@ -409,3 +435,71 @@ if st.session_state.discussion_started and st.session_state.round_num <= rounds:
         st.session_state.round_num += 1
         # time.sleep(1)
         st.rerun()
+
+
+# 設定 Pop-up 狀態變數
+if "show_idea_dialog" not in st.session_state:
+    st.session_state.show_idea_dialog = False
+if "is_loading" not in st.session_state:
+    st.session_state.is_loading = False  # 控制 `st.spinner()` 顯示狀態
+
+# **顯示「選擇 Idea」按鈕**
+with st.sidebar:
+    if st.button("📌 選擇要加入收藏的 Idea"):
+        st.session_state.show_idea_dialog = True
+
+if st.session_state.show_idea_dialog:
+    def show_idea_dialog():
+        """彈出 Pop-up，讓用戶選擇 AI 產生的 Idea"""
+                # **顯示轉圈圈 Loading 狀態**
+        if st.session_state.is_loading:
+            with st.spinner("處理中，請稍候..."):
+                time.sleep(0.8)  # 模擬處理時間
+            st.session_state.is_loading = False  # **關閉 Loading 狀態**
+            # st.rerun()  # **刷新 Pop-up 內容**
+
+        st.write("### 💡 你可以選擇以下 AI 產生的創意點子")
+
+        if "idea_list" not in st.session_state or not st.session_state.idea_list:
+            st.warning("目前沒有可選的 Idea")
+            return
+
+        selected_ideas = []
+        ideas_to_remove = []
+
+        # **列出所有 AI 產生的 Idea，讓用戶選擇**
+        for idea in st.session_state.idea_list:
+            col1, col2 = st.columns([0.8, 0.2])
+            with col1:
+                if st.checkbox(f"{idea}", key=f"popup_{idea}"):
+                    selected_ideas.append(idea)
+            with col2:
+                if st.button("🗑️", key=f"delete_{idea}"):
+                    ideas_to_remove.append(idea)
+                    st.session_state.is_loading = True
+
+
+        # **移除不需要的 Idea**
+        if ideas_to_remove:
+            for idea in ideas_to_remove:
+                st.session_state.idea_list.remove(idea)
+            st.warning(f"已移除 {len(ideas_to_remove)} 個 Idea")
+            st.rerun()
+
+        # **確認選擇後，加入收藏夾**
+        if st.button("確認選擇"):
+            st.session_state.selected_persistent_ideas.extend(selected_ideas)
+            st.success(f"已收藏的 Idea：{selected_ideas}")
+
+            # **啟動 `st.spinner()`**
+            st.session_state.is_loading = True
+            st.session_state.show_idea_dialog = False  # **關閉 Pop-up**
+
+            st.rerun()
+
+    # **呼叫 `st.dialog()` 來開啟 Pop-up**
+    @st.dialog("📌 選擇要加入收藏的 Idea", width="large")
+    def idea_dialog():
+        show_idea_dialog()
+
+    idea_dialog()

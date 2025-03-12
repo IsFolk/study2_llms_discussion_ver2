@@ -6,6 +6,12 @@ from autogen import ConversableAgent
 import pandas as pd
 import plotly.express as px
 import logging
+import os
+from dotenv import load_dotenv
+
+
+load_dotenv()  # 讀取 .env 文件
+api_key = os.getenv("OPENAI_API_KEY")
 
 question = "風箏除了娛樂，還能用什麼其他創意用途？"
 
@@ -74,6 +80,14 @@ agents = {
     ),
 }
 
+# **定義每個 Agent 對應的 Avatar（可使用本地或網路圖片）**
+agent_avatars = {
+    "Normal Assistant 1": "🤖",  # 你的助理 1 圖片
+    "Normal Assistant 2": "🧠",  # 你的助理 2 圖片
+    "Assistant": "🛠️",  # 你的Helper
+}
+
+
 # 初始化用戶代理
 user_proxy = UserProxyAgent(
     name=sanitize_name("User"),
@@ -125,7 +139,7 @@ def initialize_agent_states(round_num, agents):
 
 # Display chat messages from history on app rerun
 for message in st.session_state.messages:
-    with st.chat_message(message["role"]):
+    with st.chat_message(agent_avatars.get(message["role"], message["role"])):
         st.markdown(message["content"])
 
 # 更新某代理的回覆狀態
@@ -178,7 +192,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
         # st.write("開頭")
         # st.write(st.session_state.messages)
-        if agent_name in ["Convergence Judge", "Assistant"]:
+        if agent_name in ["Convergence Judge"]:
             continue
 
 
@@ -200,9 +214,57 @@ async def single_round_discussion(round_num, agents, user_proxy):
             else:
                 # 等待輸入
                 return False
+        elif agent_name == "Assistant":
+                if st.session_state[f"round_{round_num}_agent_states"][agent_name]:
+                    # st.write(f"{agent_name} 已完成")
+                    continue
+
+                this_round_response = {}
+                for agent_name_each, response in st.session_state.this_round_combined_responses.items():
+                    if agent_name_each in ["User", "Assistant"]:
+                        continue
+                    this_round_response[agent_name_each] = response
+
+                category_prompt = (
+                    f"你是一個擅長資訊統整的 AI，負責整理來自不同 AI 助手的回應，並確保分類清晰、有條理。"
+                    f"\n\n💡 **這些 AI 來自不同領域，包括：**"
+                    f"\n🔹 Normal Assistant 1（{agents['Normal Assistant 1'].system_message}）"
+                    f"\n🔹 Normal Assistant 2（{agents['Normal Assistant 2'].system_message}）"
+                    # f"\n🔹 Convergence Judge（{agents['Convergence Judge'].system_message}）"
+                    f"\n\n📌 **這一輪的討論紀錄：**"
+                    f"\n{this_round_response}"
+                    f"\n\n**請按照以下要求統整資訊：**"
+                    f"\n1️⃣ **標記 AI 來源**：請在每個觀點前標示該 AI 的名稱，例如【Normal Assistant 1】、【Normal Assistant 2】"
+                    f"\n2️⃣ **主動判斷分類**：根據內容自動選擇最合適的分類，例如「技術創新」、「市場趨勢」、「挑戰與風險」、「未來應用」等"
+                    f"\n3️⃣ **避免重複**：若多個 AI 提出相似觀點，請合併處理，並標示不同 AI 的補充意見"
+                    f"\n4️⃣ **總結主要發現**：在最後提供 2-3 句話的摘要，歸納討論的核心重點"
+                    f"\n\n📌 **格式範例：**"
+                    f"\n【技術創新】"
+                    f"\n- 【Normal Assistant 1】提出『風力發電風箏』，強調其能源轉換效率"
+                    f"\n- 【Normal Assistant 2】補充該技術可搭配 AI 自適應飛行，提高穩定性"
+                    f"\n- 【Convergence Judge】提醒該技術仍需進一步測試穩定性"
+                    f"\n\n【市場趨勢】"
+                    f"\n- 【Normal Assistant 1】認為 NFT 風箏具市場潛力，因為收藏品市場正在成長"
+                    f"\n- 【Convergence Judge】質疑其長期價值，認為 NFT 市場的不確定性較高"
+                    f"\n\n📌 **總結**"
+                    f"\n本輪討論顯示，風力發電風箏在技術上有潛力，但仍需解決穩定性問題。NFT 風箏在市場潛力上存在爭議，值得進一步探討。"
+                    f"\n\n👉 **請告訴我你想進一步探討哪個部分？我可以提供更多細節！**"
+                )
+
+                response = await agent.a_initiate_chat(user_proxy, message=category_prompt, max_turns=1)
+                response = response.chat_history[-1]["content"].strip()
+                st.session_state.this_round_combined_responses[agent_name] = response
+                # Display assistant response in chat message container
+                with st.chat_message(agent_avatars.get(agent_name, agent_name)):
+                    st.markdown(response)
+                # Add assistant response to chat history
+                st.session_state.messages.append({"role": agent_name, "content": response})
+                
+                mark_agent_completed(round_num, agent_name)
+
         else:
             if not st.session_state.proxy_message_showed:
-                with st.chat_message("assistant"):
+                with st.chat_message(agent_avatars.get("assistant", "assistant")):
                     st.markdown(discussion_message)
                 st.session_state.proxy_message_showed = True
                 
@@ -214,9 +276,17 @@ async def single_round_discussion(round_num, agents, user_proxy):
             response = await agent.a_initiate_chat(user_proxy, message=discussion_message, max_turns=1)
             response = response.chat_history[-1]["content"].strip()
             st.session_state.this_round_combined_responses[agent_name] = response
+
+            # # 將 AI 回應顯示為折疊式
+            # with st.expander(f"{agent_name} 的回應（點擊展開）", expanded=False):
+            #     st.markdown(response)
+
             # Display assistant response in chat message container
-            with st.chat_message(agent_name):
-                st.markdown(response)
+            with st.chat_message(agent_avatars.get(agent_name, agent_name)):
+                # 讓內容折疊，但仍保留 chat_message 樣式
+                with st.expander(f"查看 {agent_name} 的詳細回應（點擊展開）", expanded=False):
+                    st.markdown(response)
+
             # Add assistant response to chat history
             st.session_state.messages.append({"role": agent_name, "content": response})
             mark_agent_completed(round_num, agent_name)
