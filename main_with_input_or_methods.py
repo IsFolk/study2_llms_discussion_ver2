@@ -17,6 +17,11 @@ import shutil
 
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
+
+# 設定 Streamlit 頁面
+st.set_page_config(page_title="LLM & Human Discussion Framework", page_icon="🧑", layout="wide")
+st.title("LLM + Human Discussion Framework (LLM First)")
+
 # 讓每個使用者有獨立的 session ID
 if "user_session_id" not in st.session_state:
     st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
@@ -28,6 +33,7 @@ if os.path.exists(cache_dir):
     st.write("📄 內部文件：", os.listdir(cache_dir))
 else:
     st.write("✅ 沒有發現 `.cache` 目錄")
+    
 st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
 st.cache_resource.clear()
 
@@ -38,9 +44,6 @@ api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
 
 question = "風箏除了娛樂，還能用什麼其他創意用途？"
 
-# 設定 Streamlit 頁面
-st.set_page_config(page_title="LLM & Human Discussion Framework", page_icon="🧑", layout="wide")
-st.title("LLM + Human Discussion Framework (LLM First)")
 
 # 側邊欄：配置本地 API
 with st.sidebar:
