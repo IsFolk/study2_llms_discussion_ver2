@@ -547,6 +547,7 @@ with st.sidebar:
             st.session_state[f"{user_session_id}_round_{i}_agent_states"] = {
                 agent_name: False for agent_name in agents.keys()
             }
-            
+
         st.cache_data.clear()
         st.success("已清除所有紀錄！")
+        st.rerun()
