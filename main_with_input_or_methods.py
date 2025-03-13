@@ -528,26 +528,18 @@ if st.session_state[f"{user_session_id}_show_idea_dialog"]:
 
 # 清除紀錄
 with st.sidebar:
+    st.write("你的User Session ID：", user_session_id)
     if st.button("🗑️ 清除所有紀錄"):
-        st.session_state[f"{user_session_id}_messages"] = []
-        st.session_state[f"{user_session_id}_discussion_started"] = False
-        st.session_state[f"{user_session_id}_round_num"] = 0
-        st.session_state[f"{user_session_id}_user_inputs"] = {}
-        st.session_state[f"{user_session_id}_show_input"] = True
-        st.session_state[f"{user_session_id}_this_round_combined_responses"] = {}
-        st.session_state[f"{user_session_id}_proxy_message_showed"] = False
-        st.session_state[f"{user_session_id}_selected_technique"] = {}
-        st.session_state[f"{user_session_id}_idea_options"] = {}
-        st.session_state[f"{user_session_id}_idea_list"] = []
-        st.session_state[f"{user_session_id}_selected_persistent_ideas"] = []
-
-        for i in range(rounds + 1):  # 包括第 0 輪
-            st.session_state[f"{user_session_id}_round_{i}_completed"] = False
-            st.session_state[f"{user_session_id}_round_{i}_input_completed"] = False
-            st.session_state[f"{user_session_id}_round_{i}_agent_states"] = {
-                agent_name: False for agent_name in agents.keys()
-            }
-
+        # 清空所有與當前 user_session_id 相關的 session_state 變數
+        keys_to_delete = [key for key in st.session_state.keys() if key.startswith(user_session_id)]
+        for key in keys_to_delete:
+            del st.session_state[key]
+        
+        # 清除 Streamlit 快取
         st.cache_data.clear()
+
+        # 顯示成功訊息
         st.success("已清除所有紀錄！")
+
+        # **強制重新執行整個程式，確保 UI 更新**
         st.rerun()
