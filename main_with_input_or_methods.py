@@ -10,12 +10,22 @@ import os
 from dotenv import load_dotenv
 import textwrap
 import time
+import uuid
 
 import os
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
-# load_dotenv()  # 讀取 .env 文件
-# api_key = os.getenv("OPENAI_API_KEY")
+
+# 讓每個使用者有獨立的 session ID
+if "user_session_id" not in st.session_state:
+    st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
+
+user_session_id = st.session_state["user_session_id"]
+
+@st.cache_data(hash_funcs={str: lambda _: user_session_id})  # 讓 Cache 依據不同的 Session ID
+def get_user_specific_data():
+    st.write(f"這是 {user_session_id} 的專屬 Cache")
+    return f"你的專屬 Cache 資料 ({user_session_id})"
 
 # 從 st.secrets 讀取 API Key
 api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
@@ -29,7 +39,7 @@ st.title("LLM + Human Discussion Framework (LLM First)")
 # 側邊欄：配置本地 API
 with st.sidebar:
     st.header("模型與 API 設定")
-    selected_model = st.selectbox("選擇模型", ["llama3-taiwan", "llama-3-taiwan-13.3b-instruct-i1", "gpt-4o-mini", "llama-3.2-1b-instruct", "gpt-4o"], index=0)
+    selected_model = st.selectbox("選擇模型", ["gpt-4o-mini", "gpt-4o"], index=0)
     base_url = None
     if "gpt" not in selected_model:
         base_url = st.text_input("API 端點", "http://127.0.0.1:1234/v1")
@@ -115,60 +125,75 @@ user_proxy = UserProxyAgent(
 
 
 # Initialize chat history
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-if "discussion_started" not in st.session_state:
-    st.session_state.discussion_started = False
-if "round_num" not in st.session_state:
-    st.session_state.round_num = 0
+if f"{user_session_id}_messages" not in st.session_state:
+    st.session_state[f"{user_session_id}_messages"] = []
+
+if f"{user_session_id}_discussion_started" not in st.session_state:
+    st.session_state[f"{user_session_id}_discussion_started"] = False
+
+if f"{user_session_id}_round_num" not in st.session_state:
+    st.session_state[f"{user_session_id}_round_num"] = 0
+
 # Initialize or retrieve user input storage
-if "user_inputs" not in st.session_state:
-    st.session_state.user_inputs = {}
-# if "current_input" not in st.session_state:
-#     st.session_state.current_input = ""
-if "show_input" not in st.session_state:
-    st.session_state.show_input = True
-if "this_round_combined_responses" not in st.session_state:
-    st.session_state.this_round_combined_responses = {}
-if "proxy_message_showed" not in st.session_state:
-    st.session_state.proxy_message_showed = False
-if "selected_technique" not in st.session_state:
-    st.session_state.selected_technique = {}
-if "idea_options" not in st.session_state:
-    st.session_state.idea_options = {}
-if "idea_list" not in st.session_state:
-    st.session_state.idea_list = []
-if "selected_persistent_ideas" not in st.session_state:
-    st.session_state.selected_persistent_ideas = []
+if f"{user_session_id}_user_inputs" not in st.session_state:
+    st.session_state[f"{user_session_id}_user_inputs"] = {}
+
+# if f"{user_session_id}_current_input" not in st.session_state:
+#     st.session_state[f"{user_session_id}_current_input"] = ""
+
+if f"{user_session_id}_show_input" not in st.session_state:
+    st.session_state[f"{user_session_id}_show_input"] = True
+
+if f"{user_session_id}_this_round_combined_responses" not in st.session_state:
+    st.session_state[f"{user_session_id}_this_round_combined_responses"] = {}
+
+if f"{user_session_id}_proxy_message_showed" not in st.session_state:
+    st.session_state[f"{user_session_id}_proxy_message_showed"] = False
+
+if f"{user_session_id}_selected_technique" not in st.session_state:
+    st.session_state[f"{user_session_id}_selected_technique"] = {}
+
+if f"{user_session_id}_idea_options" not in st.session_state:
+    st.session_state[f"{user_session_id}_idea_options"] = {}
+
+if f"{user_session_id}_idea_list" not in st.session_state:
+    st.session_state[f"{user_session_id}_idea_list"] = []
+
+if f"{user_session_id}_selected_persistent_ideas" not in st.session_state:
+    st.session_state[f"{user_session_id}_selected_persistent_ideas"] = []
+
+
+
+
 
 # 初始化每輪的完成狀態
 rounds = 99  # 假設總輪數是 99，可以根據需求調整
 for i in range(rounds + 1):  # 包括第 0 輪
-    if f"round_{i}_completed" not in st.session_state:
-        st.session_state[f"round_{i}_completed"] = False
+    if f"{user_session_id}_round_{i}_completed" not in st.session_state:
+        st.session_state[f"{user_session_id}_round_{i}_completed"] = False
 
 # 初始化每輪的完成狀態
 rounds = 99  # 假設總輪數是 99，可以根據需求調整
 for i in range(rounds + 1):  # 包括第 0 輪
-    if f"round_{i}_input_completed" not in st.session_state:
-        st.session_state[f"round_{i}_input_completed"] = False
+    if f"{user_session_id}_round_{i}_input_completed" not in st.session_state:
+        st.session_state[f"{user_session_id}_round_{i}_input_completed"] = False
 
 
 # 初始化代理的回覆狀態
 def initialize_agent_states(round_num, agents):
-    if f"round_{round_num}_agent_states" not in st.session_state:
-        st.session_state[f"round_{round_num}_agent_states"] = {
+    if f"{user_session_id}_round_{round_num}_agent_states" not in st.session_state:
+        st.session_state[f"{user_session_id}_round_{round_num}_agent_states"] = {
             agent_name: False for agent_name in agents.keys()
         }
 
 # Display chat messages from history on app rerun
-for message in st.session_state.messages:
+for message in st.session_state[f"{user_session_id}_messages"]:
     with st.chat_message(agent_avatars.get(message["role"], message["role"])):
         st.markdown(message["content"])
 
 # 更新某代理的回覆狀態
 def mark_agent_completed(round_num, agent_name):
-    st.session_state[f"round_{round_num}_agent_states"][agent_name] = True
+    st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name] = True
 
 
 async def single_round_discussion(round_num, agents, user_proxy):
@@ -186,7 +211,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
     else:
         last_round_response = {}
         # 上一輪的討論紀錄
-        for agent_name, response in st.session_state.this_round_combined_responses.items():
+        for agent_name, response in st.session_state[f"{user_session_id}_this_round_combined_responses"].items():
             if agent_name in ["User"]:
                 continue
             last_round_response[agent_name] = response
@@ -195,8 +220,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
         discussion_message = (
             f"🔄 **第 {round_num} 輪討論** 🔄\n\n"
             # f"📌 **討論主題：** {question}\n\n"
-            f"💡 **使用者選擇的創意：**「{st.session_state.user_inputs.get(round_num-1, "")}」\n\n"
-            f"💡 **使用者選擇的創意思考技術：**「{st.session_state.selected_technique.get(round_num-1, "")}」\n\n"
+            f"💡 **使用者選擇的創意：**「{st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")}」\n\n"
+            f"💡 **使用者選擇的創意思考技術：**「{st.session_state[f"{user_session_id}_selected_technique"].get(round_num-1, "")}」\n\n"
             
             f" 上一輪討論紀錄: {last_round_response}\n"
             f"📝 **請針對上輪討論及使用者選擇的創意進行延伸，並基於創意思考技術做延伸！**\n\n "
@@ -206,8 +231,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
         discussion_message_for_showing = (
             f"🔄 **第 {round_num} 輪討論** 🔄\n\n"
             # f"📌 **討論主題：** {question}\n\n"
-            f"💡 **使用者選擇的創意：**「{st.session_state.user_inputs.get(round_num-1, "")}」\n\n"
-            f"💡 **使用者選擇的創意思考技術：**「{st.session_state.selected_technique.get(round_num-1, "")}」\n\n"
+            f"💡 **使用者選擇的創意：**「{st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")}」\n\n"
+            f"💡 **使用者選擇的創意思考技術：**「{st.session_state[f"{user_session_id}_selected_technique"].get(round_num-1, "")}」\n\n"
             f"📝 **請針對上輪討論及使用者選擇的創意進行延伸，並基於創意思考技術做延伸！**\n\n "
             f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
@@ -215,8 +240,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
 
     
-    this_round_method = st.session_state.selected_technique.get(round_num, "")
-    this_round_idea = st.session_state.user_inputs.get(round_num, "")
+    this_round_method = st.session_state[f"{user_session_id}_selected_technique"].get(round_num, "")
+    this_round_idea = st.session_state[f"{user_session_id}_user_inputs"].get(round_num, "")
 
 
 
@@ -225,22 +250,22 @@ async def single_round_discussion(round_num, agents, user_proxy):
             continue
 
         # 最後一個 agent 後等待user_input後再進行下一輪
-        if agent_name == "User":            
+        if agent_name == "User":
             # 處理用戶輸入，只針對當前輪次
             if this_round_method != "" and this_round_idea != "":
                 # Add user message to chat history
-                st.session_state.messages.append({"role": "user", "content": this_round_method})
-                st.session_state[f"round_{round_num}_input_completed"] = True
-                st.session_state.this_round_combined_responses[agent_name] = this_round_method
-                st.session_state.selected_technique[round_num] = this_round_method
+                st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_method})
+                st.session_state[f"{user_session_id}_round_{round_num}_input_completed"] = True
+                st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = this_round_method
+                st.session_state[f"{user_session_id}_selected_technique"][round_num] = this_round_method
 
-                st.session_state.user_inputs[round_num] = this_round_idea
+                st.session_state[f"{user_session_id}_user_inputs"][round_num] = this_round_idea
                 # st.write(f"User 輸入完成：{this_round_input}")
 
                 # Display user message in chat message container
                 with st.chat_message("user"):
                     st.markdown(this_round_method)
-                st.session_state.proxy_message_showed = False
+                st.session_state[f"{user_session_id}_proxy_message_showed"] = False
                 return True
 
             else:
@@ -248,12 +273,12 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 return False
         elif agent_name == "Assistant":
             # pass
-            if st.session_state[f"round_{round_num}_agent_states"][agent_name]:
+            if f"{user_session_id}_round_{round_num}_agent_states" in st.session_state and st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name]:
                 # st.write(f"{agent_name} 已完成")
                 continue
 
             this_round_response = {}
-            for agent_name_each, response in st.session_state.this_round_combined_responses.items():
+            for agent_name_each, response in st.session_state[f"{user_session_id}_this_round_combined_responses"].items():
                 if agent_name_each in ["User", "Assistant"]:
                     continue
                 this_round_response[agent_name_each] = response
@@ -278,22 +303,22 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
             response = await agent.a_initiate_chat(user_proxy, message=category_prompt, max_turns=1)
             response = response.chat_history[-1]["content"].strip()
-            st.session_state.this_round_combined_responses[agent_name] = response
+            st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
             # Display assistant response in chat message container
             with st.chat_message(agent_avatars.get(agent_name, agent_name)):
                 st.markdown(response)
             # Add assistant response to chat history
-            st.session_state.messages.append({"role": agent_name, "content": response})
+            st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
             
             mark_agent_completed(round_num, agent_name)
 
             # **解析 Assistant 產出的可選 Idea**
             idea_options = re.findall(r"✅ Idea \d+: (.+)", response)
-            st.session_state.idea_options[f"round_{round_num}"] = idea_options
+            st.session_state[f"{user_session_id}_idea_options"][f"round_{round_num}"] = idea_options
 
             for idea in idea_options:
-                if idea not in st.session_state.idea_list:
-                    st.session_state.idea_list.append(idea)
+                if idea not in st.session_state[f"{user_session_id}_idea_list"]:
+                    st.session_state[f"{user_session_id}_idea_list"].append(idea)
 
             # st.write(f"登記 {agent_name} 完成")
         elif agent_name in ["Normal Assistant 1", "Normal Assistant 2"]:
@@ -309,7 +334,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
             #     f"👉 **請以這個視角提供你的創新見解，並確保你的回答符合你的專業！**\n\n"
             # )
 
-            if not st.session_state.proxy_message_showed:
+            if not st.session_state[f"{user_session_id}_proxy_message_showed"]:
                 with st.chat_message("assistant"):
                     st.markdown(discussion_message_for_showing)
                 # # **顯示上一輪討論紀錄（可展開視窗）**
@@ -318,79 +343,64 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 #         markdown_content = "\n\n".join([f"### {key}\n{value}" for key, value in last_round_response.items()])
                 #         st.markdown(markdown_content, unsafe_allow_html=True)
 
-                st.session_state.proxy_message_showed = True
+                st.session_state[f"{user_session_id}_proxy_message_showed"] = True
 
-                st.session_state.messages.append({"role": "assistant", "content": discussion_message})
+                st.session_state[f"{user_session_id}_messages"].append({"role": "assistant", "content": discussion_message_for_showing})
 
                 
-            if st.session_state[f"round_{round_num}_agent_states"][agent_name]:
+            if f"{user_session_id}_round_{round_num}_agent_states" in st.session_state and st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name]:
                 # st.write(f"{agent_name} 已完成")
                 continue
 
             response = await agent.a_initiate_chat(user_proxy, message=discussion_message_temp, max_turns=1)
             response = response.chat_history[-1]["content"].strip()
-            st.session_state.this_round_combined_responses[agent_name] = response
+            st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
             # Display assistant response in chat message container
             with st.chat_message(agent_avatars.get(agent_name, agent_name)):
                 st.markdown(response)
             # Add assistant response to chat history
-            st.session_state.messages.append({"role": agent_name, "content": response})
+            st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
             mark_agent_completed(round_num, agent_name)
             # st.write(f"登記 {agent_name} 完成")
  
     # return True
 
-# 初始化 refresh_flag
-if "refresh_flag" not in st.session_state:
-    st.session_state.refresh_flag = False
-
-
 # 在輸入框消失後顯示提示，然後再顯示下一輪輸入框
-if not st.session_state.show_input:
-    st.write(f"已完成第 {st.session_state.round_num - 1} 輪的輸入！")
-    st.session_state.show_input = True
+if not st.session_state[f"{user_session_id}_show_input"]:
+    st.write(f"已完成第 {st.session_state[f"{user_session_id}_round_num"] - 1} 輪的輸入！")
+    st.session_state[f"{user_session_id}_show_input"] = True
 
 
-if not st.session_state.discussion_started:
+if not st.session_state[f"{user_session_id}_discussion_started"]:
     if st.button("開始 LLM 討論"):
-        st.session_state.discussion_started = True
-        st.session_state.round_num = 0
-        st.session_state.integrated_message = f"這是第 0 輪討論，{question}。"
+        st.session_state[f"{user_session_id}_discussion_started"] = True
+        st.session_state[f"{user_session_id}_round_num"] = 0
+        st.session_state[f"{user_session_id}_integrated_message"] = f"這是第 0 輪討論，{question}。"
 
-if st.session_state.discussion_started and st.session_state.round_num <= rounds:
+if st.session_state[f"{user_session_id}_discussion_started"] and st.session_state[f"{user_session_id}_round_num"] <= rounds:
     
-    round_num = st.session_state.round_num
+    round_num = st.session_state[f"{user_session_id}_round_num"]
     # 執行單輪討論
     completed = asyncio.run(single_round_discussion(
-        st.session_state.round_num, agents, user_proxy
+        st.session_state[f"{user_session_id}_round_num"], agents, user_proxy
     ))
 
 
-    if not st.session_state[f"round_{round_num}_input_completed"]:
+    if not st.session_state[f"{user_session_id}_round_{round_num}_input_completed"]:
 
         # **透過 st.radio() 限制只能選擇一種輸入方式**
         input_method = st.radio("請選擇輸入方式：", ["輸入創意點子", "選擇創意思考技術"])
 
         if input_method == "輸入創意點子":
-            current_input = st.text_area(f"請輸入第 {st.session_state.round_num} 輪的想法：")
+            current_input = st.text_area(f"請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：")
 
         # **方式 2：使用 selectbox 選擇創意思考技術**
         elif input_method == "選擇創意思考技術":
             # 輸入選定的 Idea
-            # user_inputs = st.text_area("請輸入選定的 Idea（可選）：", 
-            #                         value="")
-            # st.write(st.session_state.idea_options)
-
-            if st.session_state.idea_options.get(f"round_{round_num}", []):
-                idea_options = st.session_state.idea_options.get(f"round_{round_num}", [])
+            if st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", []):
+                idea_options = st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", [])
                 st.write("### 🔍 AI 產生的創意點子，你可以選擇要延伸的 Idea")
                 user_inputs = st.multiselect("請選擇你想延伸的 Idea：", idea_options)
-
-                # if st.button("確認選擇"):
-                #     st.session_state.selected_ideas_for_next_round = selected_ideas
-                #     st.success(f"你選擇了這些 Idea：{selected_ideas}")
-                #     st.rerun()
-
             
 
             # **選擇創意思考技術**
@@ -417,10 +427,10 @@ if st.session_state.discussion_started and st.session_state.round_num <= rounds:
             selected_technique = st.selectbox("請選擇創意思考技術：", techniques, index=0)
 
         # **按鈕送出輸入**
-        if st.button("送出選擇") and selected_technique != "請選擇一種創意思考技術" and user_inputs:
+        if st.button("送出選擇") and selected_technique != "請選擇一種創意思考技術" and user_inputs is not None:
             # 保存 Idea 和 Selected Idea
-            st.session_state.user_inputs[round_num] = st.session_state.user_inputs[round_num] = ", ".join(user_inputs)
-            st.session_state.selected_technique[round_num] = selected_technique
+            st.session_state[f"{user_session_id}_user_inputs"][round_num] = st.session_state[f"{user_session_id}_user_inputs"][round_num] = ", ".join(user_inputs)
+            st.session_state[f"{user_session_id}_selected_technique"][round_num] = selected_technique
 
 
             # 顯示選擇結果
@@ -437,41 +447,41 @@ if st.session_state.discussion_started and st.session_state.round_num <= rounds:
             #     st.markdown(f"**選擇的技術：** {selected_technique}")
 
         completed = asyncio.run(single_round_discussion(
-            st.session_state.round_num, agents, user_proxy
+            st.session_state[f"{user_session_id}_round_num"], agents, user_proxy
         ))
 
     if completed:
         # 如果該輪完成，進入下一輪
         # st.write(f"已完成第 {st.session_state.round_num} 輪，進入第 {st.session_state.round_num + 1} 輪")
-        st.session_state.round_num += 1
+        st.session_state[f"{user_session_id}_round_num"] += 1
         # time.sleep(1)
         st.rerun()
 
 
 # 設定 Pop-up 狀態變數
-if "show_idea_dialog" not in st.session_state:
-    st.session_state.show_idea_dialog = False
-if "is_loading" not in st.session_state:
-    st.session_state.is_loading = False  # 控制 `st.spinner()` 顯示狀態
+if f"{user_session_id}_show_idea_dialog" not in st.session_state:
+    st.session_state[f"{user_session_id}_show_idea_dialog"] = False
+if f"{user_session_id}_is_loading" not in st.session_state:
+    st.session_state[f"{user_session_id}_is_loading"] = False  # 控制 `st.spinner()` 顯示狀態
 
 # **顯示「選擇 Idea」按鈕**
 with st.sidebar:
     if st.button("📌 選擇要加入收藏的 Idea"):
-        st.session_state.show_idea_dialog = True
+        st.session_state[f"{user_session_id}_show_idea_dialog"] = True
 
-if st.session_state.show_idea_dialog:
+if st.session_state[f"{user_session_id}_show_idea_dialog"]:
     def show_idea_dialog():
         """彈出 Pop-up，讓用戶選擇 AI 產生的 Idea"""
                 # **顯示轉圈圈 Loading 狀態**
-        if st.session_state.is_loading:
+        if st.session_state[f"{user_session_id}_is_loading"]:
             with st.spinner("處理中，請稍候..."):
                 time.sleep(0.8)  # 模擬處理時間
-            st.session_state.is_loading = False  # **關閉 Loading 狀態**
+            st.session_state[f"{user_session_id}_is_loading"] = False  # **關閉 Loading 狀態**
             # st.rerun()  # **刷新 Pop-up 內容**
 
         st.write("### 💡 你可以選擇以下 AI 產生的創意點子")
 
-        if "idea_list" not in st.session_state or not st.session_state.idea_list:
+        if f"{user_session_id}_idea_list" not in st.session_state or not st.session_state[f"{user_session_id}_idea_list"]:
             st.warning("目前沒有可選的 Idea")
             return
 
@@ -479,7 +489,7 @@ if st.session_state.show_idea_dialog:
         ideas_to_remove = []
 
         # **列出所有 AI 產生的 Idea，讓用戶選擇**
-        for idea in st.session_state.idea_list:
+        for idea in st.session_state[f"{user_session_id}_idea_list"]:
             col1, col2 = st.columns([0.8, 0.2])
             with col1:
                 if st.checkbox(f"{idea}", key=f"popup_{idea}"):
@@ -487,24 +497,24 @@ if st.session_state.show_idea_dialog:
             with col2:
                 if st.button("🗑️", key=f"delete_{idea}"):
                     ideas_to_remove.append(idea)
-                    st.session_state.is_loading = True
+                    st.session_state[f"{user_session_id}_is_loading"] = True
 
 
         # **移除不需要的 Idea**
         if ideas_to_remove:
             for idea in ideas_to_remove:
-                st.session_state.idea_list.remove(idea)
+                st.session_state[f"{user_session_id}_idea_list"].remove(idea)
             st.warning(f"已移除 {len(ideas_to_remove)} 個 Idea")
             st.rerun()
 
         # **確認選擇後，加入收藏夾**
         if st.button("確認選擇"):
-            st.session_state.selected_persistent_ideas.extend(selected_ideas)
+            st.session_state[f"{user_session_id}_selected_persistent_ideas"].extend(selected_ideas)
             st.success(f"已收藏的 Idea：{selected_ideas}")
 
             # **啟動 `st.spinner()`**
-            st.session_state.is_loading = True
-            st.session_state.show_idea_dialog = False  # **關閉 Pop-up**
+            st.session_state[f"{user_session_id}_is_loading"] = True
+            st.session_state[f"{user_session_id}_show_idea_dialog"] = False  # **關閉 Pop-up**
 
             st.rerun()
 
