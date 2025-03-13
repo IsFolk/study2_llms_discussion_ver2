@@ -106,7 +106,7 @@ if f"{user_session_id}_agents" not in st.session_state:
             name=sanitize_name("Normal Assistant 2"),
             llm_config=llm_config,
             system_message="你是一位科技公司的產品經理，擁有深厚的技術背景。你的任務是評估創新技術的可行性，並確保產品設計符合市場需求。你的回答應該兼顧技術可行性與用戶體驗，並提供具體的產品開發方向。",
-            code_execution_config={"use_docker": False}
+            code_execution_config={"use_docker": False},
             clear_history=True
         ),
         "Convergence Judge": ConversableAgent(
