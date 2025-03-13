@@ -419,6 +419,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 continue
 
             response = await agent.a_initiate_chat(user_proxy, message=discussion_message_temp, max_turns=1)
+            st.write(f"🔍 Debug: {agent_name} 回應 = {response.chat_history}")  # ✅ 檢查是否含有舊紀錄
             response = response.chat_history[-1]["content"].strip()
             st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
             # Display assistant response in chat message container
