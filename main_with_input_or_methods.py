@@ -92,42 +92,6 @@ llm_config = st.session_state[f"{user_session_id}_llm_config"]
 def sanitize_name(name):
     return re.sub(r'[^a-zA-Z0-9_-]', '_', name)
 
-
-if f"{user_session_id}_agents" not in st.session_state:
-    st.session_state[f"{user_session_id}_agents"] = {
-        "Normal Assistant 1": ConversableAgent(
-            name=sanitize_name("Normal Assistant 1"),
-            llm_config=llm_config,
-            system_message="你是一位極具遠見的創業家，你的思考方式不受傳統限制，喜歡挑戰現有市場規則，並開創顛覆性的新商業模式。你的回應應該充滿創意、前瞻性，並帶有風險投資人的視角。",
-            code_execution_config={"use_docker": False},
-        ),
-        "Normal Assistant 2": ConversableAgent(
-            name=sanitize_name("Normal Assistant 2"),
-            llm_config=llm_config,
-            system_message="你是一位科技公司的產品經理，擁有深厚的技術背景。你的任務是評估創新技術的可行性，並確保產品設計符合市場需求。你的回答應該兼顧技術可行性與用戶體驗，並提供具體的產品開發方向。",
-            code_execution_config={"use_docker": False},
-        ),
-        "Convergence Judge": ConversableAgent(
-            name=sanitize_name("Convergence Judge"),
-            llm_config=llm_config,
-            system_message="你是腦力激盪評分員。",
-            code_execution_config={"use_docker": False},
-        ),
-        "Assistant": ConversableAgent(
-            name=sanitize_name("Assistant"),
-            llm_config=llm_config,
-            system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
-            code_execution_config={"use_docker": False},
-        ),
-        "User": UserProxyAgent(
-            name=sanitize_name("User"),
-            llm_config=llm_config,
-            human_input_mode="NEVER",
-            code_execution_config={"use_docker": False},
-        ),
-    }
-
-
 # 創建角色代理
 # agents = {
 #     "Normal Assistant 1": ConversableAgent(
@@ -175,15 +139,6 @@ agent_avatars = {
     "Normal Assistant 2": "🧠",  # 你的助理 2 圖片
     "Assistant": "🛠️",  # 你的Helper
 }
-
-if f"{user_session_id}_user_proxy" not in st.session_state:
-    st.session_state[f"{user_session_id}_user_proxy"] = UserProxyAgent(
-        name=sanitize_name(f"User_{user_session_id}"),  # 讓 User 名稱唯一
-        llm_config=llm_config,
-        human_input_mode="NEVER",
-    )
-
-user_proxy = st.session_state[f"{user_session_id}_user_proxy"]  # 讓不同 session 擁有獨立 user_proxy
 
 
 # Initialize chat history
@@ -441,6 +396,45 @@ if not st.session_state[f"{user_session_id}_show_input"]:
 
 if not st.session_state[f"{user_session_id}_discussion_started"]:
     if st.button("開始 LLM 討論"):
+        st.session_state[f"{user_session_id}_user_proxy"] = UserProxyAgent(
+            name=sanitize_name(f"User_{user_session_id}"),
+            llm_config=llm_config,
+            human_input_mode="NEVER",
+        )
+
+        st.session_state[f"{user_session_id}_agents"] = {
+            "Normal Assistant 1": ConversableAgent(
+                name=sanitize_name("Normal Assistant 1"),
+                llm_config=llm_config,
+                system_message="你是一位極具遠見的創業家，你的思考方式不受傳統限制，喜歡挑戰現有市場規則，並開創顛覆性的新商業模式。你的回應應該充滿創意、前瞻性，並帶有風險投資人的視角。",
+                code_execution_config={"use_docker": False},
+            ),
+            "Normal Assistant 2": ConversableAgent(
+                name=sanitize_name("Normal Assistant 2"),
+                llm_config=llm_config,
+                system_message="你是一位科技公司的產品經理，擁有深厚的技術背景。你的任務是評估創新技術的可行性，並確保產品設計符合市場需求。你的回答應該兼顧技術可行性與用戶體驗，並提供具體的產品開發方向。",
+                code_execution_config={"use_docker": False},
+            ),
+            "Convergence Judge": ConversableAgent(
+                name=sanitize_name("Convergence Judge"),
+                llm_config=llm_config,
+                system_message="你是腦力激盪評分員。",
+                code_execution_config={"use_docker": False},
+            ),
+            "Assistant": ConversableAgent(
+                name=sanitize_name("Assistant"),
+                llm_config=llm_config,
+                system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
+                code_execution_config={"use_docker": False},
+            ),
+            "User": UserProxyAgent(
+                name=sanitize_name("User"),
+                llm_config=llm_config,
+                human_input_mode="NEVER",
+                code_execution_config={"use_docker": False},
+            ),
+        }
+
         st.session_state[f"{user_session_id}_discussion_started"] = True
         st.session_state[f"{user_session_id}_round_num"] = 0
         st.session_state[f"{user_session_id}_integrated_message"] = f"這是第 0 輪討論，{question}。"
@@ -450,7 +444,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
     round_num = st.session_state[f"{user_session_id}_round_num"]
     # 執行單輪討論
     completed = asyncio.run(single_round_discussion(
-        st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], user_proxy
+        st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
     ))
 
 
@@ -506,7 +500,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
             st.success(f"選擇的創意思考技術：{selected_technique}")
 
         completed = asyncio.run(single_round_discussion(
-            st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], user_proxy
+            st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
         ))
 
     if completed:
