@@ -524,3 +524,29 @@ if st.session_state[f"{user_session_id}_show_idea_dialog"]:
         show_idea_dialog()
 
     idea_dialog()
+
+
+# 清除紀錄
+with st.sidebar:
+    if st.button("🗑️ 清除所有紀錄"):
+        st.session_state[f"{user_session_id}_messages"] = []
+        st.session_state[f"{user_session_id}_discussion_started"] = False
+        st.session_state[f"{user_session_id}_round_num"] = 0
+        st.session_state[f"{user_session_id}_user_inputs"] = {}
+        st.session_state[f"{user_session_id}_show_input"] = True
+        st.session_state[f"{user_session_id}_this_round_combined_responses"] = {}
+        st.session_state[f"{user_session_id}_proxy_message_showed"] = False
+        st.session_state[f"{user_session_id}_selected_technique"] = {}
+        st.session_state[f"{user_session_id}_idea_options"] = {}
+        st.session_state[f"{user_session_id}_idea_list"] = []
+        st.session_state[f"{user_session_id}_selected_persistent_ideas"] = []
+
+        for i in range(rounds + 1):  # 包括第 0 輪
+            st.session_state[f"{user_session_id}_round_{i}_completed"] = False
+            st.session_state[f"{user_session_id}_round_{i}_input_completed"] = False
+            st.session_state[f"{user_session_id}_round_{i}_agent_states"] = {
+                agent_name: False for agent_name in agents.keys()
+            }
+            
+        st.cache_data.clear()
+        st.success("已清除所有紀錄！")
