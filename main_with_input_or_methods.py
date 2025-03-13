@@ -435,6 +435,9 @@ if not st.session_state[f"{user_session_id}_discussion_started"]:
             ),
         }
 
+        for agent in st.session_state[f"{user_session_id}_agents"].values():
+            agent.clear_history()  # 清空內部記憶
+
         st.session_state[f"{user_session_id}_discussion_started"] = True
         st.session_state[f"{user_session_id}_round_num"] = 0
         st.session_state[f"{user_session_id}_integrated_message"] = f"這是第 0 輪討論，{question}。"
