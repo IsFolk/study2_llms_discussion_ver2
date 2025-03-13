@@ -61,17 +61,32 @@ if not base_url and "gpt" not in selected_model:
     st.stop()
 
 # LLM 配置
-llm_config = {
-    "config_list": [
-        {
-            "model": selected_model,
-            "api_key": api_key,
-            "base_url": base_url,
-            "temperature": temperature,
-            "stream": True
-        }
-    ]
-}
+# llm_config = {
+#     "config_list": [
+#         {
+#             "model": selected_model,
+#             "api_key": api_key,
+#             "base_url": base_url,
+#             "temperature": temperature,
+#             "stream": True
+#         }
+#     ]
+# }
+
+if f"{user_session_id}_llm_config" not in st.session_state:
+    st.session_state[f"{user_session_id}_llm_config"] = {
+        "config_list": [
+            {
+                "model": selected_model,
+                "api_key": api_key,
+                "base_url": base_url,
+                "temperature": temperature,
+                "stream": False
+            }
+        ]
+    }
+
+llm_config = st.session_state[f"{user_session_id}_llm_config"]
 
 # Function to sanitize names
 def sanitize_name(name):
