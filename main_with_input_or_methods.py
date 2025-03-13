@@ -21,6 +21,13 @@ os.environ["AUTOGEN_USE_DOCKER"] = "0"
 if "user_session_id" not in st.session_state:
     st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
 
+cache_dir = os.path.expanduser("~/.cache")
+
+if os.path.exists(cache_dir):
+    st.write(f"📂 Streamlit 快取目錄：{cache_dir}")
+    st.write("📄 內部文件：", os.listdir(cache_dir))
+else:
+    st.write("✅ 沒有發現 `.cache` 目錄")
 st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
 st.cache_resource.clear()
 
@@ -328,10 +335,10 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 f"\n3️⃣ **避免重複**：若多個 AI 提出相似觀點，請合併處理，並標示不同 AI 的補充意見"
                 f"\n4️⃣ **總結主要發現**：在最後提供 2-3 句話的摘要，歸納討論的核心重點"
                 f"\n5️⃣ **從AI觀點中整理出可選 Idea，讓用戶可以勾選，格式如下：**"
-                f"\n✅ Idea 1: 風箏可用...（請填入 Idea 內容）"
-                f"\n✅ Idea 2: 風箏可用...（請填入 Idea 內容）"
-                f"\n✅ Idea 3: 風箏可用...（請填入 Idea 內容）"
-                f"\n✅ Idea N: 風箏可用...（請填入 Idea 內容）"
+                f"\n✅ Idea 1: ...（請填入 Idea 內容）"
+                f"\n✅ Idea 2: ...（請填入 Idea 內容）"
+                f"\n✅ Idea 3: ...（請填入 Idea 內容）"
+                f"\n✅ Idea N: ...（請填入 Idea 內容）"
 
             )
 
