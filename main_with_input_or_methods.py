@@ -232,9 +232,9 @@ def initialize_agent_states(round_num, agents):
         }
 
 # Display chat messages from history on app rerun
-for message in st.session_state[f"{user_session_id}_messages"]:
-    with st.chat_message(agent_avatars.get(message["role"], message["role"])):
-        st.markdown(message["content"])
+# for message in st.session_state[f"{user_session_id}_messages"]:
+#     with st.chat_message(agent_avatars.get(message["role"], message["role"])):
+#         st.markdown(message["content"])
 
 # 更新某代理的回覆狀態
 def mark_agent_completed(round_num, agent_name):
