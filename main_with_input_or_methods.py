@@ -13,12 +13,16 @@ import time
 import uuid
 
 import os
-os.environ["AUTOGEN_USE_DOCKER"] = "0"
+import shutil
 
+os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
 # 讓每個使用者有獨立的 session ID
 if "user_session_id" not in st.session_state:
     st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
+
+st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
+st.cache_resource.clear()
 
 user_session_id = st.session_state["user_session_id"]
 
@@ -551,12 +555,44 @@ if st.session_state[f"{user_session_id}_show_idea_dialog"]:
 # 清除紀錄
 with st.sidebar:
     st.write("你的User Session ID：", user_session_id)
+    st.write(st.session_state[f"{user_session_id}_messages"])
+
+    cache_dir = os.path.expanduser("~/.cache")
+    if os.path.exists(cache_dir):
+        st.write(f"📂 Streamlit 快取目錄：{cache_dir}")
+        st.write("📄 內部文件：", os.listdir(cache_dir))
+    else:
+        st.write("✅ 沒有發現 `.cache` 目錄")
+
     if st.button("🗑️ 清除所有紀錄"):
+        # 確保 `.cache` 內的所有檔案都被刪除
+        if os.path.exists(cache_dir):
+            for filename in os.listdir(cache_dir):
+                file_path = os.path.join(cache_dir, filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)  # **刪除檔案**
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)  # **刪除子目錄**
+                except Exception as e:
+                    st.write(f"❌ 無法刪除 {file_path}: {e}")
+
+            st.write("✅ `.cache` 內的所有檔案已刪除！")
+
+        if os.path.exists(cache_dir):
+            st.write("⚠️ `.cache` 仍然存在！內容：", os.listdir(cache_dir))
+        else:
+            st.write("✅ `.cache` 目錄已成功刪除！")
+
+
         # 清空所有與當前 user_session_id 相關的 session_state 變數
         keys_to_delete = [key for key in st.session_state.keys() if key.startswith(user_session_id)]
         for key in keys_to_delete:
             del st.session_state[key]
-        
+
+        st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
+        st.cache_resource.clear()
+
         # 顯示成功訊息
         st.success("已清除所有紀錄！")
 
