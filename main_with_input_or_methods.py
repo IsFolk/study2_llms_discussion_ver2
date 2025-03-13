@@ -393,49 +393,49 @@ if not st.session_state[f"{user_session_id}_show_input"]:
     st.write(f"已完成第 {st.session_state[f"{user_session_id}_round_num"] - 1} 輪的輸入！")
     st.session_state[f"{user_session_id}_show_input"] = True
 
+if f"{user_session_id}_user_proxy" not in st.session_state:
+    st.session_state[f"{user_session_id}_user_proxy"] = UserProxyAgent(
+        name=sanitize_name(f"User_{user_session_id}"),
+        llm_config=llm_config,
+        human_input_mode="NEVER",
+    )
+
+if f"{user_session_id}_agents" not in st.session_state:
+    st.session_state[f"{user_session_id}_agents"] = {
+        "Normal Assistant 1": ConversableAgent(
+            name=sanitize_name(f"Normal Assistant 1_{user_session_id}"),  # 讓名稱獨立
+            llm_config=llm_config,
+            system_message="你是一位極具遠見的創業家，你的思考方式不受傳統限制...",
+            code_execution_config={"use_docker": False}
+        ),
+        "Normal Assistant 2": ConversableAgent(
+            name=sanitize_name(f"Normal Assistant 2_{user_session_id}"),
+            llm_config=llm_config,
+            system_message="你是一位科技公司的產品經理...",
+            code_execution_config={"use_docker": False}
+        ),
+        "Convergence Judge": ConversableAgent(
+            name=sanitize_name(f"Convergence Judge_{user_session_id}"),
+            llm_config=llm_config,
+            system_message="你是腦力激盪評分員。",
+            code_execution_config={"use_docker": False}
+        ),
+        "Assistant": ConversableAgent(
+            name=sanitize_name(f"Assistant_{user_session_id}"),
+            llm_config=llm_config,
+            system_message="你是 Assistant，負責將點子...",
+            code_execution_config={"use_docker": False}
+        ),
+        "User": UserProxyAgent(
+            name=sanitize_name(f"User_{user_session_id}"),  # 讓 User 名稱唯一
+            llm_config=llm_config,
+            human_input_mode="NEVER",
+            code_execution_config={"use_docker": False}
+        ),
+    }
 
 if not st.session_state[f"{user_session_id}_discussion_started"]:
     if st.button("開始 LLM 討論"):
-        st.session_state[f"{user_session_id}_user_proxy"] = UserProxyAgent(
-            name=sanitize_name(f"User_{user_session_id}"),
-            llm_config=llm_config,
-            human_input_mode="NEVER",
-        )
-
-    if f"{user_session_id}_agents" not in st.session_state:
-        st.session_state[f"{user_session_id}_agents"] = {
-            "Normal Assistant 1": ConversableAgent(
-                name=sanitize_name(f"Normal Assistant 1_{user_session_id}"),  # 讓名稱獨立
-                llm_config=llm_config,
-                system_message="你是一位極具遠見的創業家，你的思考方式不受傳統限制...",
-                code_execution_config={"use_docker": False}
-            ),
-            "Normal Assistant 2": ConversableAgent(
-                name=sanitize_name(f"Normal Assistant 2_{user_session_id}"),
-                llm_config=llm_config,
-                system_message="你是一位科技公司的產品經理...",
-                code_execution_config={"use_docker": False}
-            ),
-            "Convergence Judge": ConversableAgent(
-                name=sanitize_name(f"Convergence Judge_{user_session_id}"),
-                llm_config=llm_config,
-                system_message="你是腦力激盪評分員。",
-                code_execution_config={"use_docker": False}
-            ),
-            "Assistant": ConversableAgent(
-                name=sanitize_name(f"Assistant_{user_session_id}"),
-                llm_config=llm_config,
-                system_message="你是 Assistant，負責將點子...",
-                code_execution_config={"use_docker": False}
-            ),
-            "User": UserProxyAgent(
-                name=sanitize_name(f"User_{user_session_id}"),  # 讓 User 名稱唯一
-                llm_config=llm_config,
-                human_input_mode="NEVER",
-                code_execution_config={"use_docker": False}
-            ),
-        }
-
         for agent in st.session_state[f"{user_session_id}_agents"].values():
             agent.clear_history()  # 清空內部記憶
 
