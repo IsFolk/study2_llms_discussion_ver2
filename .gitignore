@@ -65,7 +65,7 @@ yarn-error.log*
 /web/*
 !/web/.keep
 
-/.streamlit/*
+/.streamlit/secrets.toml
 
 
 *.pdf
