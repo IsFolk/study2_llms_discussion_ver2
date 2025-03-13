@@ -300,6 +300,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
             if this_round_method != "" and this_round_idea != "":
                 # Add user message to chat history
                 st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_method})
+                st.write(f"已存入 {user_session_id}_messages")
                 st.session_state[f"{user_session_id}_round_{round_num}_input_completed"] = True
                 st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = this_round_method
                 st.session_state[f"{user_session_id}_selected_technique"][round_num] = this_round_method
@@ -354,6 +355,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 st.markdown(response)
             # Add assistant response to chat history
             st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
+            st.write(f"已存入 {user_session_id}_messages")
             
             mark_agent_completed(round_num, agent_name)
 
@@ -364,6 +366,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
             for idea in idea_options:
                 if idea not in st.session_state[f"{user_session_id}_idea_list"]:
                     st.session_state[f"{user_session_id}_idea_list"].append(idea)
+                    st.write(f"已存入 {user_session_id}_idea_list")
 
             # st.write(f"登記 {agent_name} 完成")
         elif agent_name in ["Normal Assistant 1", "Normal Assistant 2"]:
@@ -391,6 +394,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 st.session_state[f"{user_session_id}_proxy_message_showed"] = True
 
                 st.session_state[f"{user_session_id}_messages"].append({"role": "assistant", "content": discussion_message_for_showing})
+                st.write(f"已存入 {user_session_id}_messages")
 
                 
             if f"{user_session_id}_round_{round_num}_agent_states" in st.session_state and st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name]:
@@ -405,6 +409,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 st.markdown(response)
             # Add assistant response to chat history
             st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
+            st.write(f"已存入 {user_session_id}_messages")
             mark_agent_completed(round_num, agent_name)
             # st.write(f"登記 {agent_name} 完成")
  
