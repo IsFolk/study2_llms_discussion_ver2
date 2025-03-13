@@ -161,12 +161,14 @@ agent_avatars = {
     "Assistant": "🛠️",  # 你的Helper
 }
 
-# 初始化用戶代理
-user_proxy = UserProxyAgent(
-    name=sanitize_name("User"),
-    llm_config=llm_config,
-    human_input_mode="NEVER",
-)
+if f"{user_session_id}_user_proxy" not in st.session_state:
+    st.session_state[f"{user_session_id}_user_proxy"] = UserProxyAgent(
+        name=sanitize_name(f"User_{user_session_id}"),  # 讓 User 名稱唯一
+        llm_config=llm_config,
+        human_input_mode="NEVER",
+    )
+
+user_proxy = st.session_state[f"{user_session_id}_user_proxy"]  # 讓不同 session 擁有獨立 user_proxy
 
 
 # Initialize chat history
