@@ -26,13 +26,13 @@ st.title("LLM + Human Discussion Framework (LLM First)")
 if "user_session_id" not in st.session_state:
     st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
 
-cache_dir = os.path.expanduser("~/.cache")
+# cache_dir = os.path.expanduser("~/.cache")
 
-if os.path.exists(cache_dir):
-    st.write(f"📂 Streamlit 快取目錄：{cache_dir}")
-    st.write("📄 內部文件：", os.listdir(cache_dir))
-else:
-    st.write("✅ 沒有發現 `.cache` 目錄")
+# if os.path.exists(cache_dir):
+#     st.write(f"📂 Streamlit 快取目錄：{cache_dir}")
+#     st.write("📄 內部文件：", os.listdir(cache_dir))
+# else:
+#     st.write("✅ 沒有發現 `.cache` 目錄")
     
 st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
 st.cache_resource.clear()
@@ -204,9 +204,9 @@ def initialize_agent_states(round_num, agents):
         }
 
 # Display chat messages from history on app rerun
-# for message in st.session_state[f"{user_session_id}_messages"]:
-#     with st.chat_message(agent_avatars.get(message["role"], message["role"])):
-#         st.markdown(message["content"])
+for message in st.session_state[f"{user_session_id}_messages"]:
+    with st.chat_message(agent_avatars.get(message["role"], message["role"])):
+        st.markdown(message["content"])
 
 # 更新某代理的回覆狀態
 def mark_agent_completed(round_num, agent_name):
@@ -272,7 +272,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
             if this_round_method != "" and this_round_idea != "":
                 # Add user message to chat history
                 st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_method})
-                st.write(f"已存入 {user_session_id}_messages")
                 st.session_state[f"{user_session_id}_round_{round_num}_input_completed"] = True
                 st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = this_round_method
                 st.session_state[f"{user_session_id}_selected_technique"][round_num] = this_round_method
@@ -327,7 +326,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 st.markdown(response)
             # Add assistant response to chat history
             st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
-            st.write(f"已存入 {user_session_id}_messages")
             
             mark_agent_completed(round_num, agent_name)
 
@@ -338,7 +336,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
             for idea in idea_options:
                 if idea not in st.session_state[f"{user_session_id}_idea_list"]:
                     st.session_state[f"{user_session_id}_idea_list"].append(idea)
-                    st.write(f"已存入 {user_session_id}_idea_list")
 
             # st.write(f"登記 {agent_name} 完成")
         elif agent_name in ["Normal Assistant 1", "Normal Assistant 2"]:
@@ -366,7 +363,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 st.session_state[f"{user_session_id}_proxy_message_showed"] = True
 
                 st.session_state[f"{user_session_id}_messages"].append({"role": "assistant", "content": discussion_message_for_showing})
-                st.write(f"已存入 {user_session_id}_messages")
 
                 
             if f"{user_session_id}_round_{round_num}_agent_states" in st.session_state and st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name]:
@@ -374,7 +370,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 continue
 
             response = await agent.a_initiate_chat(user_proxy, message=discussion_message_temp, max_turns=1, clear_history=True)
-            st.write(f"🔍 Debug: {agent_name} 回應 = {response.chat_history}")  # ✅ 檢查是否含有舊紀錄
             response = response.chat_history[-1]["content"].strip()
             st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
             # Display assistant response in chat message container
@@ -382,7 +377,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 st.markdown(response)
             # Add assistant response to chat history
             st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
-            st.write(f"已存入 {user_session_id}_messages")
             mark_agent_completed(round_num, agent_name)
             # st.write(f"登記 {agent_name} 完成")
  
@@ -585,37 +579,7 @@ if st.session_state[f"{user_session_id}_show_idea_dialog"]:
 
 # 清除紀錄
 with st.sidebar:
-    st.write("你的User Session ID：", user_session_id)
-    st.write(st.session_state[f"{user_session_id}_messages"])
-
-    cache_dir = os.path.expanduser("~/.cache")
-    if os.path.exists(cache_dir):
-        st.write(f"📂 Streamlit 快取目錄：{cache_dir}")
-        st.write("📄 內部文件：", os.listdir(cache_dir))
-    else:
-        st.write("✅ 沒有發現 `.cache` 目錄")
-
-    if st.button("🗑️ 清除所有紀錄"):
-        # 確保 `.cache` 內的所有檔案都被刪除
-        if os.path.exists(cache_dir):
-            for filename in os.listdir(cache_dir):
-                file_path = os.path.join(cache_dir, filename)
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)  # **刪除檔案**
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)  # **刪除子目錄**
-                except Exception as e:
-                    st.write(f"❌ 無法刪除 {file_path}: {e}")
-
-            st.write("✅ `.cache` 內的所有檔案已刪除！")
-
-        if os.path.exists(cache_dir):
-            st.write("⚠️ `.cache` 仍然存在！內容：", os.listdir(cache_dir))
-        else:
-            st.write("✅ `.cache` 目錄已成功刪除！")
-
-
+    if st.button("🗑️ 重新開始創意思考"):
         # 清空所有與當前 user_session_id 相關的 session_state 變數
         keys_to_delete = [key for key in st.session_state.keys() if key.startswith(user_session_id)]
         for key in keys_to_delete:
@@ -623,6 +587,11 @@ with st.sidebar:
 
         st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
         st.cache_resource.clear()
+
+        # **1️⃣ 重新生成新的 session ID**
+        new_session_id = str(uuid.uuid4())
+        st.session_state["user_session_id"] = new_session_id
+        user_session_id = new_session_id  # 更新變數
 
         # 顯示成功訊息
         st.success("已清除所有紀錄！")
