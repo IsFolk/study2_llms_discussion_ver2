@@ -138,6 +138,9 @@ agent_avatars = {
 }
 
 
+# Initialize question
+if f"{user_session_id}_user_question" not in st.session_state:
+    st.session_state[f"{user_session_id}_user_question"] = ""
 # Initialize chat history
 if f"{user_session_id}_messages" not in st.session_state:
     st.session_state[f"{user_session_id}_messages"] = []
@@ -212,11 +215,11 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
     if round_num == 0:
         discussion_message = (
-            f"這是第0輪，{st.session_state["user_question"]}"
+            f"這是第0輪，{st.session_state[f"{user_session_id}_user_question"]}"
             # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
         discussion_message_for_showing = (
-            f"這是第0輪，{st.session_state["user_question"]}"
+            f"這是第0輪，{st.session_state[f"{user_session_id}_user_question"]}"
             # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
         )
     else:
@@ -510,14 +513,14 @@ if not st.session_state.get(f"{user_session_id}_discussion_started", False):
 
     # **如果選擇 "🔧 自訂問題"，顯示輸入框**
     if selected_question == "🔧 自訂問題":
-        custom_question = st.text_input("請輸入你的問題：", value=st.session_state.get("user_question", ""))
+        custom_question = st.text_input("請輸入你的問題：", value=st.session_state.get(f"{user_session_id}_user_question", ""))
         question = custom_question if custom_question else "請輸入你的問題"
     else:
         question = selected_question
 
     # **確保 question 存入 session_state**
     if question != "請選擇討論問題":
-        st.session_state["user_question"] = question
+        st.session_state[f"{user_session_id}_user_question"] = question
 
         # **開始按鈕**
         if st.button("開始 LLM 討論"):
@@ -526,7 +529,7 @@ if not st.session_state.get(f"{user_session_id}_discussion_started", False):
 
             st.session_state[f"{user_session_id}_discussion_started"] = True
             st.session_state[f"{user_session_id}_round_num"] = 0
-            st.session_state[f"{user_session_id}_integrated_message"] = f"這是第 0 輪討論，{st.session_state["user_question"]}。"
+            st.session_state[f"{user_session_id}_integrated_message"] = f"這是第 0 輪討論，{st.session_state[f"{user_session_id}_user_question"]}。"
             st.rerun()  # **強制重新整理頁面，隱藏選擇問題的 UI**
 
 if st.session_state[f"{user_session_id}_discussion_started"] and st.session_state[f"{user_session_id}_round_num"] <= rounds:
