@@ -19,7 +19,7 @@ os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
 # 設定 Streamlit 頁面
 st.set_page_config(page_title="LLM & Human Discussion Framework", page_icon="🧑", layout="wide")
-st.title("LLM + Human Discussion Framework (LLM First)")
+st.title("LLM + Human Discussion Framework")
 
 # 讓每個使用者有獨立的 session ID
 if "user_session_id" not in st.session_state:
@@ -124,11 +124,11 @@ def sanitize_name(name):
 # }
 
 
-assistant = ConversableAgent(
-            name=sanitize_name("Assistant"),
-            llm_config=llm_config,
-            system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
-        )
+# assistant = ConversableAgent(
+#             name=sanitize_name("Assistant"),
+#             llm_config=llm_config,
+#             system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
+#         )
 
 # **定義每個 Agent 對應的 Avatar（可使用本地或網路圖片）**
 agent_avatars = {
@@ -178,7 +178,8 @@ if f"{user_session_id}_idea_list" not in st.session_state:
 
 if f"{user_session_id}_selected_persistent_ideas" not in st.session_state:
     st.session_state[f"{user_session_id}_selected_persistent_ideas"] = {}
-
+if f"{user_session_id}_current_input_method" not in st.session_state:
+    st.session_state[f"{user_session_id}_current_input_method"] = ""
 
 # 初始化每輪的完成狀態
 rounds = 99  # 假設總輪數是 99，可以根據需求調整
@@ -230,66 +231,63 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 continue
             last_round_response[agent_name] = response
 
-
-        # **創意思考技術對應的解釋**
-        technique_explanations = {
-            # 重新定義與問題分析
-            "重新定義問題": "嘗試從不同角度重新描述設計問題，尋找新的解決途徑。",
-            "類比思考": "從其他領域尋找類似問題的解決方案，並將其應用到當前設計中。",
-            "改變視角": "站在不同使用者或利益相關者的立場，思考他們的需求和期望。",
-            "極端情境": "設想在極端或特殊情況下，產品或服務應如何運作。",
-            "模組化設計": "將設計拆分為可獨立運作的模組，提升靈活性與可擴展性。",
-            "逆向思考": "從解決方案回推問題，檢視設計的合理性與完整性。",
-            "簡化複雜性": "尋找並消除設計中的冗餘元素，使其更直觀易用。",
-            "整合功能": "將多種功能合併，創造更高的價值或使用體驗。",
-            "情境模擬": "模擬使用者在不同情境下的行為，預測可能的需求變化。",
-            "資源再利用": "考慮如何利用現有資源，達成設計目標，提升可持續性。",
-            
-            # SCAMPER 方法
-            "Substitute（替代）": "考慮可以替換掉現有解決方案中的哪些部分或元素。",
-            "Combine（結合）": "思考如何將現有的解決方案或其部分與其他的想法或元素結合起來。",
-            "Modify（修改）": "考慮如何改變現有解決方案的某些屬性，例如放大、縮小、改變形狀或功能。",
-            "Put to another use（變更用途）": "思考現有的解決方案是否可以應用於不同的使用者或目的。",
-            "Eliminate（刪除）": "考慮移除現有解決方案中的哪些部分或功能，看看會發生什麼。",
-            "Reverse（反轉）": "思考將現有的解決方案或其部分反過來或以相反的方式進行。",
-        }
-
-
-        # **取得使用者選擇的技術**
-        selected_technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num-1, "")
-
-        # **獲取對應的解釋**
-        technique_description = technique_explanations.get(selected_technique, "（未找到對應的解釋）")
+        if st.session_state[f"{user_session_id}_current_input_method"] == "選擇創意思考技術":
+            # **創意思考技術對應的解釋**
+            technique_explanations = {
+                # 重新定義與問題分析
+                "重新定義與問題分析 - 重新定義問題": "嘗試從不同角度重新描述設計問題，尋找新的解決途徑。",
+                "重新定義與問題分析 - 逆向思考": "從解決方案回推問題，檢視設計的合理性與完整性。",
+                "重新定義與問題分析 - 改變視角": "站在不同使用者或利益相關者的立場，思考他們的需求和期望。",
+                
+                "創新發想 - 類比思考": "從其他領域尋找類似問題的解決方案，並將其應用到當前設計中。",
+                "創新發想 - 極端情境": "設想在極端或特殊情況下，產品或服務應如何運作。",
+                "創新發想 - 情境模擬": "模擬使用者在不同情境下的行為，預測可能的需求變化。",
+                
+                "設計最佳化 - 簡化複雜性": "尋找並消除設計中的冗餘元素，使其更直觀易用。",
+                "設計最佳化 - 整合功能": "將多種功能合併，創造更高的價值或使用體驗。",
+                "設計最佳化 - 模組化設計": "將設計拆分為可獨立運作的模組，提升靈活性與可擴展性。",
+                
+                "可持續性與資源利用 - 資源再利用": "考慮如何利用現有資源，達成設計目標，提升可持續性。",
+                
+                # SCAMPER 方法
+                "SCAMPER - Substitute（替代）": "考慮可以替換掉現有解決方案中的哪些部分或元素。",
+                "SCAMPER - Combine（結合）": "思考如何將現有的解決方案或其部分與其他的想法或元素結合起來。",
+                "SCAMPER - Modify（修改）": "考慮如何改變現有解決方案的某些屬性，例如放大、縮小、改變形狀或功能。",
+                "SCAMPER - Put to another use（變更用途）": "思考現有的解決方案是否可以應用於不同的使用者或目的。",
+                "SCAMPER - Eliminate（刪除）": "考慮移除現有解決方案中的哪些部分或功能，看看會發生什麼。",
+                "SCAMPER - Reverse（反轉）": "思考將現有的解決方案或其部分反過來或以相反的方式進行。",
+            }
 
 
-        # 設定使用者 Ideation Technique 討論模板
-        discussion_message = (
-            f"🔄 **第 {round_num} 輪討論** 🔄\n\n"
-            f"💡 **使用者選擇的創意：**「{st.session_state[f'{user_session_id}_user_inputs'].get(round_num-1, '')}」\n\n"
-            f"💡 **使用者選擇的創意思考技術：**「{selected_technique}」\n\n"
-            f"🧐 **方法應用說明：** {technique_description}\n\n"
-            # f"📌 **上一輪討論紀錄:** {last_round_response}\n\n"
-            f"📝 **請針對使用者選擇的創意基於創意思考技術做延伸！**\n\n"
-            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
-        )
+            # **取得使用者選擇的技術**
+            selected_technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num-1, "")
 
-        discussion_message_for_showing = (
-            f"🔄 **第 {round_num} 輪討論** 🔄\n\n"
-            f"💡 **使用者選擇的創意：**「{st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")}」\n\n"
-            f"💡 **使用者選擇的創意思考技術：**「{selected_technique}」\n\n"
-            f"🧐 **方法應用說明：** {technique_description}\n\n"
-            # f"📌 **上一輪討論紀錄:** {last_round_response}\n\n"
-            f"📝 **請針對使用者選擇的創意基於創意思考技術做延伸！**\n\n "
-            f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
-        )
+            # **獲取對應的解釋**
+            technique_description = technique_explanations.get(selected_technique, "（未找到對應的解釋）")
 
 
+            # 設定使用者 Ideation Technique 討論模板
+            discussion_message = (
+                f"🔄 **第 {round_num} 輪討論** 🔄\n\n"
+                f"💡 **使用者選擇的創意：**「{st.session_state[f'{user_session_id}_user_inputs'].get(round_num-1, '')}」\n\n"
+                f"💡 **使用者選擇的創意思考技術：**「{selected_technique}」\n\n"
+                f"🧐 **方法應用說明：** {technique_description}\n\n"
+                # f"📌 **上一輪討論紀錄:** {last_round_response}\n\n"
+            )
 
-    
-    this_round_method = st.session_state[f"{user_session_id}_selected_technique"].get(round_num, "")
-    this_round_idea = st.session_state[f"{user_session_id}_user_inputs"].get(round_num, "")
+            discussion_message_for_showing = (
+                f"🔄 **第 {round_num} 輪討論** 🔄\n\n"
+                f"💡 **使用者選擇的創意：**「{st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")}」\n\n"
+                f"💡 **使用者選擇的創意思考技術：**「{selected_technique}」\n\n"
+                f"🧐 **方法應用說明：** {technique_description}\n\n"
+                # f"📌 **上一輪討論紀錄:** {last_round_response}\n\n"
+                f"📝 **請針對使用者選擇的創意基於創意思考技術做延伸！**\n\n "
+                f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            )
 
-
+        elif st.session_state[f"{user_session_id}_current_input_method"] == "輸入創意點子":
+            discussion_message = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
+            discussion_message_for_showing = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
 
     for agent_name, agent in agents.items():
         if agent_name in ["Convergence Judge"]:
@@ -297,23 +295,28 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
         # 最後一個 agent 後等待user_input後再進行下一輪
         if agent_name == "User":
+            this_round_method = st.session_state[f"{user_session_id}_selected_technique"].get(round_num, "")
+            this_round_idea = st.session_state[f"{user_session_id}_user_inputs"].get(round_num, "")
+
+            # st.write(f"this_round_method: {this_round_method}")
+            # st.write(f"this_round_idea: {this_round_idea}")
+
             # 處理用戶輸入，只針對當前輪次
-            if this_round_method != "" and this_round_idea != "":
+            if this_round_idea != "":
                 # Add user message to chat history
-                st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_method})
+                st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_idea})
                 st.session_state[f"{user_session_id}_round_{round_num}_input_completed"] = True
                 st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = this_round_method
                 st.session_state[f"{user_session_id}_selected_technique"][round_num] = this_round_method
-
                 st.session_state[f"{user_session_id}_user_inputs"][round_num] = this_round_idea
-                # st.write(f"User 輸入完成：{this_round_input}")
 
                 # Display user message in chat message container
                 with st.chat_message("user"):
-                    st.markdown(this_round_method)
-                st.session_state[f"{user_session_id}_proxy_message_showed"] = False
-                return True
+                    st.markdown(this_round_idea)
 
+                st.session_state[f"{user_session_id}_proxy_message_showed"] = False
+
+                return True
             else:
                 # 等待輸入
                 return False
@@ -376,16 +379,35 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
             # st.write(f"登記 {agent_name} 完成")
         elif agent_name in ["Normal Assistant 1", "Normal Assistant 2"]:
-            discussion_message_temp = discussion_message + (
-                f"📢 **請根據你的角色定位來回答！** 🚀\n"
-                f"🎭 你是 {agents[agent_name].system_message}。\n"
-                f"👉 **請以這個視角提供你的創新見解，並確保你的回答符合你的專業！**\n\n"
-            )
 
-            # discussion_message_for_showing += (
-            #     f"📢 **請根據你的角色定位來回答！** 🚀\n"
-            #     f"🎭 你是 {agents[agent_name].system_message}。\n"
-            #     f"👉 **請以這個視角提供你的創新見解，並確保你的回答符合你的專業！**\n\n"
+            # 第0輪之後才限制字數
+            if round_num == 0:
+                discussion_message_temp = discussion_message + (
+                    f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
+                    f"\n\n🎭 {agents[agent_name].system_message}\n\n"
+                    f"\n\n👉 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
+                    f"\n\n🔍 請務必以你的行業專業知識為基礎，深入分析此問題，並提供創新的見解。\n\n"
+                    f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
+                )
+            else:
+                discussion_message_temp = discussion_message + (
+                    f"📝 **請針對使用者選擇的創意基於創意思考技術做延伸！**\n\n"
+                    f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+                    f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
+                    f"\n\n🎭 {agents[agent_name].system_message}\n\n"
+                    f"\n\n👉 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
+                    f"\n\n🔍 請務必以你的行業專業知識為基礎，深入分析此問題，並提供創新的見解。\n\n"
+                    f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
+
+                )
+
+
+            # # 沒辦法放general system_message, 因為有2個agents
+            # discussion_message_for_showing =  discussion_message_for_showing + (
+            #     f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
+            #     f"\n\n👉 **請僅從你的專業領域出發，不要提供一般性的回答！**\n\n"
+            #     f"\n\n🔍 請務必以你的行業專業知識為基礎，深入分析此問題，並提供創新的見解。\n\n"
+            #     f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
             # )
 
             if not st.session_state[f"{user_session_id}_proxy_message_showed"]:
@@ -465,7 +487,7 @@ if f"{user_session_id}_agents" not in st.session_state:
         ),
 
 
-    # ## 只有testing的時候為了省token才會用這個
+    ## 只有testing的時候為了省token才會用這個
     # "Normal Assistant 1": ConversableAgent(
     #     name=sanitize_name("Normal Assistant 1"),
     #     llm_config=llm_config,
@@ -565,7 +587,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
         input_method = st.radio("請選擇輸入方式：", ["輸入創意點子", "選擇創意思考技術"])
 
         if input_method == "輸入創意點子":
-            current_input = st.text_area(f"請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：")
+            user_inputs = st.text_area(f"請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：")
 
         # **方式 2：使用 selectbox 選擇創意思考技術**
         elif input_method == "選擇創意思考技術":
@@ -629,19 +651,39 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
 
         # **按鈕送出輸入**
         if st.button("送出選擇"):
-            if selected_sub and user_inputs is not None:
-                # 保存 Idea 和 Selected Idea
-                st.session_state[f"{user_session_id}_user_inputs"][round_num] = st.session_state[f"{user_session_id}_user_inputs"][round_num] = ", ".join(user_inputs)
-                st.session_state[f"{user_session_id}_selected_technique"][round_num] = f"{selected_sub}"
+            if input_method == "選擇創意思考技術":
+                st.session_state[f"{user_session_id}_current_input_method"] = input_method
+                if selected_sub and user_inputs is not None:
+                    # 保存 Idea 和 Selected Idea
+                    st.session_state[f"{user_session_id}_user_inputs"][round_num] = st.session_state[f"{user_session_id}_user_inputs"][round_num] = ", ".join(user_inputs)
+                    st.session_state[f"{user_session_id}_selected_technique"][round_num] = f"{selected_main} - {selected_sub}"
 
 
-                # 顯示選擇結果
-                st.success(f"你選擇的 Idea：{user_inputs}")
-                st.success(f"選擇的創意思考技術：{selected_main} - {selected_sub}")
+                    # 顯示選擇結果
+                    st.success(f"你選擇的 Idea：{user_inputs}")
+                    st.success(f"選擇的創意思考技術：{selected_main} - {selected_sub}")
 
-            completed = asyncio.run(single_round_discussion(
-                st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
-            ))
+                    selected_main = ""
+                    selected_sub = ""
+
+                completed = asyncio.run(single_round_discussion(
+                    st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
+                ))
+                
+            elif input_method == "輸入創意點子":
+                st.session_state[f"{user_session_id}_current_input_method"] = input_method
+                if user_inputs != "":
+                    st.session_state[f"{user_session_id}_user_inputs"][round_num] = user_inputs
+                    st.session_state[f"{user_session_id}_selected_technique"][round_num] = ""
+
+                    # 顯示選擇結果
+                    st.success(f"你輸入的 Idea：{user_inputs}")
+
+                    user_inputs = ""
+
+                    completed = asyncio.run(single_round_discussion(
+                        st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
+                    ))
 
     if completed:
         # 如果該輪完成，進入下一輪
@@ -664,8 +706,9 @@ with st.sidebar:
             st.info("目前沒有收藏的 Idea。")
         else:
             ideas_to_remove = []
-            for idea, round_collected in st.session_state[f"{user_session_id}_selected_persistent_ideas"].items():
+            for idea, round_collected in st.session_state[f"{user_session_id}_selected_persistent_ideas"].items():                
                 col1, col2 = st.columns([0.85, 0.15])
+
                 with col1:
                     st.write(f"✅ {idea}  （第 {round_collected} 輪）")  # **顯示 Idea + 輪數**
                 with col2:
