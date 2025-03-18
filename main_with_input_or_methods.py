@@ -89,51 +89,10 @@ llm_config = st.session_state[f"{user_session_id}_llm_config"]
 def sanitize_name(name):
     return re.sub(r'[^a-zA-Z0-9_-]', '_', name)
 
-# 創建角色代理
-# agents = {
-#     "Normal Assistant 1": ConversableAgent(
-#         name=sanitize_name("Normal Assistant 1"),
-#         llm_config=llm_config,
-#         system_message="你是一位極具遠見的創業家，你的思考方式不受傳統限制，喜歡挑戰現有市場規則，並開創顛覆性的新商業模式。你的回應應該充滿創意、前瞻性，並帶有風險投資人的視角。",
-#         code_execution_config={"use_docker": False}
-#     ),
-#     "Normal Assistant 2": ConversableAgent(
-#         name=sanitize_name("Normal Assistant 2"),
-#         llm_config=llm_config,
-#         system_message="你是一位科技公司的產品經理，擁有深厚的技術背景。你的任務是評估創新技術的可行性，並確保產品設計符合市場需求。你的回答應該兼顧技術可行性與用戶體驗，並提供具體的產品開發方向。",
-#         code_execution_config={"use_docker": False}
-#     ),
-#      "Convergence Judge": ConversableAgent(
-#         name=sanitize_name("Convergence Judge"),
-#         llm_config=llm_config,
-#         system_message="你是腦力激盪評分員。",
-#         code_execution_config={"use_docker": False}
-#     ),
-#     "Assistant": ConversableAgent(
-#         name=sanitize_name("Assistant"),
-#         llm_config=llm_config,
-#         system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
-#         code_execution_config={"use_docker": False}
-#     ),
-#     "User": UserProxyAgent(
-#         name=sanitize_name("User"),
-#         llm_config=llm_config,
-#         human_input_mode="NEVER",
-#         code_execution_config={"use_docker": False}
-#     ),
-# }
-
-
-# assistant = ConversableAgent(
-#             name=sanitize_name("Assistant"),
-#             llm_config=llm_config,
-#             system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
-#         )
-
 # **定義每個 Agent 對應的 Avatar（可使用本地或網路圖片）**
 agent_avatars = {
-    "Normal Assistant 1": "🤖",  # 你的助理 1 圖片
-    "Normal Assistant 2": "🧠",  # 你的助理 2 圖片
+    "Normal Assistant 1": "businessman.png",  # 你的助理 1 圖片
+    "Normal Assistant 2": "engineer.png",  # 你的助理 2 圖片
     "Assistant": "🛠️",  # 你的Helper
 }
 
@@ -203,7 +162,7 @@ def initialize_agent_states(round_num, agents):
 
 # Display chat messages from history on app rerun
 for message in st.session_state[f"{user_session_id}_messages"]:
-    with st.chat_message(agent_avatars.get(message["role"], message["role"])):
+    with st.chat_message(agent_avatars.get(message["role"], message["role"]), avatar=agent_avatars.get(message["role"], message["role"])):
         st.markdown(message["content"])
 
 # 更新某代理的回覆狀態
@@ -285,7 +244,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
             )
 
-        elif st.session_state[f"{user_session_id}_current_input_method"] == "輸入創意點子":
+        elif st.session_state[f"{user_session_id}_current_input_method"] == "自由輸入":
             discussion_message = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
             discussion_message_for_showing = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
 
@@ -361,11 +320,19 @@ async def single_round_discussion(round_num, agents, user_proxy):
             response = await agent.a_initiate_chat(user_proxy, message=category_prompt, max_turns=1, clear_history=True)
             response = response.chat_history[-1]["content"].strip()
             st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
-            # Display assistant response in chat message container
-            with st.chat_message(agent_avatars.get(agent_name, agent_name)):
-                st.markdown(response)
-            # Add assistant response to chat history
-            st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
+
+            # 拿掉這個agent的討論紀錄 (只留有收藏功能在下方)
+            # with st.chat_message(agent_avatars.get(agent_name, agent_name), avatar=agent_avatars.get(agent_name, agent_name)):
+            #     message_placeholder = st.empty()  # 創建一個可變區塊
+            #     streamed_response = ""  # 初始化空字串
+
+            #     for chunk in response:  # 假設 response 是逐步回應的 iterable
+            #         streamed_response += chunk  # 累積回應
+            #         message_placeholder.markdown(streamed_response)  # 更新 UI
+            #         time.sleep(0.02)  # 延遲一點點時間，模擬輸出效果
+
+            # # Add assistant response to chat history
+            # st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
             
             mark_agent_completed(round_num, agent_name)
 
@@ -432,8 +399,18 @@ async def single_round_discussion(round_num, agents, user_proxy):
             response = response.chat_history[-1]["content"].strip()
             st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
             # Display assistant response in chat message container
-            with st.chat_message(agent_avatars.get(agent_name, agent_name)):
-                st.markdown(response)
+            # with st.chat_message(agent_avatars.get(agent_name, agent_name)):
+            #     st.markdown(response)
+
+            with st.chat_message(agent_avatars.get(agent_name, agent_name), avatar=agent_avatars.get(agent_name, agent_name)):
+                message_placeholder = st.empty()  # 創建一個可變區塊
+                streamed_response = ""  # 初始化空字串
+
+                for chunk in response:  # 假設 response 是逐步回應的 iterable
+                    streamed_response += chunk  # 累積回應
+                    message_placeholder.markdown(streamed_response)  # 更新 UI
+                    time.sleep(0.02)  # 延遲一點點時間，模擬輸出效果
+
             # Add assistant response to chat history
             st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
             mark_agent_completed(round_num, agent_name)
@@ -455,6 +432,7 @@ if f"{user_session_id}_user_proxy" not in st.session_state:
 
 if f"{user_session_id}_agents" not in st.session_state:
     st.session_state[f"{user_session_id}_agents"] = {
+
         "Normal Assistant 1": ConversableAgent(
             name=sanitize_name(f"Normal Assistant 1_{user_session_id}"),  # 讓名稱獨立
             llm_config=llm_config,
@@ -487,7 +465,7 @@ if f"{user_session_id}_agents" not in st.session_state:
         ),
 
 
-    ## 只有testing的時候為了省token才會用這個
+    # # 只有testing的時候為了省token才會用這個
     # "Normal Assistant 1": ConversableAgent(
     #     name=sanitize_name("Normal Assistant 1"),
     #     llm_config=llm_config,
@@ -584,9 +562,9 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
     if not st.session_state[f"{user_session_id}_round_{round_num}_input_completed"]:
 
         # **透過 st.radio() 限制只能選擇一種輸入方式**
-        input_method = st.radio("請選擇輸入方式：", ["輸入創意點子", "選擇創意思考技術"])
+        input_method = st.radio("請選擇輸入方式：", ["自由輸入", "選擇創意思考技術"])
 
-        if input_method == "輸入創意點子":
+        if input_method == "自由輸入":
             user_inputs = st.text_area(f"請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：")
 
         # **方式 2：使用 selectbox 選擇創意思考技術**
@@ -670,7 +648,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
                 ))
                 
-            elif input_method == "輸入創意點子":
+            elif input_method == "自由輸入":
                 st.session_state[f"{user_session_id}_current_input_method"] = input_method
                 if user_inputs != "":
                     st.session_state[f"{user_session_id}_user_inputs"][round_num] = user_inputs
