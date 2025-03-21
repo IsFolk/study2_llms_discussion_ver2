@@ -14,6 +14,7 @@ import uuid
 
 import os
 import shutil
+import markdown2
 
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
@@ -24,14 +25,6 @@ st.title("LLM + Human Discussion Framework")
 # 讓每個使用者有獨立的 session ID
 if "user_session_id" not in st.session_state:
     st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
-
-# cache_dir = os.path.expanduser("~/.cache")
-
-# if os.path.exists(cache_dir):
-#     st.write(f"📂 Streamlit 快取目錄：{cache_dir}")
-#     st.write("📄 內部文件：", os.listdir(cache_dir))
-# else:
-#     st.write("✅ 沒有發現 `.cache` 目錄")
     
 st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
 st.cache_resource.clear()
@@ -40,6 +33,19 @@ user_session_id = st.session_state["user_session_id"]
 
 # 從 st.secrets 讀取 API Key
 api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
+
+# 定義一個通用的 System Message
+system_message = """
+你是一位 {agent_role}，擁有豐富的 {industry_expertise} 經驗。
+當你回應時，請想像自己真的身處於 {work_environment}，並且正在與團隊進行創新討論。
+
+你的目標是：
+1️⃣ **基於你的專業知識** 提出具有價值的創新點子  
+2️⃣ **避免一般性答案**，只給出符合你領域的專業建議  
+3️⃣ **發想時務必從你的工作視角出發**，就像你在真實場景中一樣  
+
+**請用第一人稱，並保持專業風格！**
+"""
 
 # 側邊欄：配置本地 API（折疊式）
 with st.sidebar:
@@ -140,6 +146,10 @@ if f"{user_session_id}_selected_persistent_ideas" not in st.session_state:
 if f"{user_session_id}_current_input_method" not in st.session_state:
     st.session_state[f"{user_session_id}_current_input_method"] = ""
 
+if f"{user_session_id}_agent_restriction" not in st.session_state:
+    st.session_state[f"{user_session_id}_agent_restriction"] = {}
+
+
 # 初始化每輪的完成狀態
 rounds = 99  # 假設總輪數是 99，可以根據需求調整
 for i in range(rounds + 1):  # 包括第 0 輪
@@ -162,8 +172,31 @@ def initialize_agent_states(round_num, agents):
 
 # Display chat messages from history on app rerun
 for message in st.session_state[f"{user_session_id}_messages"]:
-    with st.chat_message(agent_avatars.get(message["role"], message["role"]), avatar=agent_avatars.get(message["role"], message["role"])):
-        st.markdown(message["content"])
+    # 先把 Markdown 轉換成 HTML
+    html_content = markdown2.markdown(message["content"])  # 解析 Markdown 為 HTML
+
+    if message["role"] == "user":
+        st.markdown(
+            f"""
+            <div style="display: flex; justify-content: flex-end; margin: 10px 0;">
+                <div style="
+                    background-color: #DCF8C6; 
+                    padding: 12px 16px;
+                    border-radius: 18px;
+                    max-width: 50%;
+                    text-align: left;
+                    box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+                    white-space: normal;
+                ">
+                    {html_content}  <!-- 這裡的內容會正確解析 -->
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        with st.chat_message(agent_avatars.get(message["role"], message["role"]), avatar=agent_avatars.get(message["role"], message["role"])):
+            st.markdown(message["content"])
 
 # 更新某代理的回覆狀態
 def mark_agent_completed(round_num, agent_name):
@@ -175,13 +208,14 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
     if round_num == 0:
         discussion_message = (
-            f"這是第0輪，{st.session_state[f"{user_session_id}_user_question"]}"
-            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
+            f"🚀 **第 {round_num} 輪討論** 🚀\n\n"
+            f"請直接列出與『{st.session_state[f'{user_session_id}_user_question']}』相關的創新點子，每個點子請附上一句簡短的主要用途，最多 **不超過兩句**。\n\n"
         )
-        discussion_message_for_showing = (
-            f"這是第0輪，{st.session_state[f"{user_session_id}_user_question"]}"
-            # f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
-        )
+
+
+        # 用於顯示給使用者的內容（簡化版）
+        discussion_message_for_showing = f"請提供與 **{st.session_state[f"{user_session_id}_user_question"]}** 相關的創意點子，每個點子附加簡單用途即可。"
+
     else:
         last_round_response = {}
         # 上一輪的討論紀錄
@@ -194,29 +228,28 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # **創意思考技術對應的解釋**
             technique_explanations = {
                 # 重新定義與問題分析
-                "重新定義與問題分析 - 重新定義問題": "嘗試從不同角度重新描述設計問題，尋找新的解決途徑。",
-                "重新定義與問題分析 - 逆向思考": "從解決方案回推問題，檢視設計的合理性與完整性。",
-                "重新定義與問題分析 - 改變視角": "站在不同使用者或利益相關者的立場，思考他們的需求和期望。",
+                # "重新定義與問題分析 - 重新定義問題": "嘗試從不同角度重新描述設計問題，尋找新的解決途徑。",
+                # "重新定義與問題分析 - 逆向思考": "從解決方案回推問題，檢視設計的合理性與完整性。",
+                # "重新定義與問題分析 - 改變視角": "站在不同使用者或利益相關者的立場，思考他們的需求和期望。",
                 
-                "創新發想 - 類比思考": "從其他領域尋找類似問題的解決方案，並將其應用到當前設計中。",
-                "創新發想 - 極端情境": "設想在極端或特殊情況下，產品或服務應如何運作。",
-                "創新發想 - 情境模擬": "模擬使用者在不同情境下的行為，預測可能的需求變化。",
+                # "創新發想 - 類比思考": "從其他領域尋找類似問題的解決方案，並將其應用到當前設計中。",
+                # "創新發想 - 極端情境": "設想在極端或特殊情況下，產品或服務應如何運作。",
+                # "創新發想 - 情境模擬": "模擬使用者在不同情境下的行為，預測可能的需求變化。",
                 
-                "設計最佳化 - 簡化複雜性": "尋找並消除設計中的冗餘元素，使其更直觀易用。",
-                "設計最佳化 - 整合功能": "將多種功能合併，創造更高的價值或使用體驗。",
-                "設計最佳化 - 模組化設計": "將設計拆分為可獨立運作的模組，提升靈活性與可擴展性。",
+                # "設計最佳化 - 簡化複雜性": "尋找並消除設計中的冗餘元素，使其更直觀易用。",
+                # "設計最佳化 - 整合功能": "將多種功能合併，創造更高的價值或使用體驗。",
+                # "設計最佳化 - 模組化設計": "將設計拆分為可獨立運作的模組，提升靈活性與可擴展性。",
                 
-                "可持續性與資源利用 - 資源再利用": "考慮如何利用現有資源，達成設計目標，提升可持續性。",
+                # "可持續性與資源利用 - 資源再利用": "考慮如何利用現有資源，達成設計目標，提升可持續性。",
                 
                 # SCAMPER 方法
-                "SCAMPER - Substitute（替代）": "考慮可以替換掉現有解決方案中的哪些部分或元素。",
-                "SCAMPER - Combine（結合）": "思考如何將現有的解決方案或其部分與其他的想法或元素結合起來。",
-                "SCAMPER - Modify（修改）": "考慮如何改變現有解決方案的某些屬性，例如放大、縮小、改變形狀或功能。",
-                "SCAMPER - Put to another use（變更用途）": "思考現有的解決方案是否可以應用於不同的使用者或目的。",
-                "SCAMPER - Eliminate（刪除）": "考慮移除現有解決方案中的哪些部分或功能，看看會發生什麼。",
-                "SCAMPER - Reverse（反轉）": "思考將現有的解決方案或其部分反過來或以相反的方式進行。",
+                "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
+                "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
+                "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
+                "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
+                "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
+                "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
             }
-
 
             # **取得使用者選擇的技術**
             selected_technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num-1, "")
@@ -248,8 +281,12 @@ async def single_round_discussion(round_num, agents, user_proxy):
             discussion_message = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
             discussion_message_for_showing = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
 
+    allowed_agents = st.session_state[f"{user_session_id}_agent_restriction"].get(round_num, st.session_state[f"{user_session_id}_agents"].keys())
+
     for agent_name, agent in agents.items():
         if agent_name in ["Convergence Judge"]:
+            continue
+        if agent_name not in st.session_state[f"{user_session_id}_agent_restriction"].get(round_num, allowed_agents):
             continue
 
         # 最後一個 agent 後等待user_input後再進行下一輪
@@ -260,18 +297,72 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # st.write(f"this_round_method: {this_round_method}")
             # st.write(f"this_round_idea: {this_round_idea}")
 
+            technique_explanations = {
+                # 重新定義與問題分析
+                # "重新定義與問題分析 - 重新定義問題": "嘗試從不同角度重新描述設計問題，尋找新的解決途徑。",
+                # "重新定義與問題分析 - 逆向思考": "從解決方案回推問題，檢視設計的合理性與完整性。",
+                # "重新定義與問題分析 - 改變視角": "站在不同使用者或利益相關者的立場，思考他們的需求和期望。",
+                
+                # "創新發想 - 類比思考": "從其他領域尋找類似問題的解決方案，並將其應用到當前設計中。",
+                # "創新發想 - 極端情境": "設想在極端或特殊情況下，產品或服務應如何運作。",
+                # "創新發想 - 情境模擬": "模擬使用者在不同情境下的行為，預測可能的需求變化。",
+                
+                # "設計最佳化 - 簡化複雜性": "尋找並消除設計中的冗餘元素，使其更直觀易用。",
+                # "設計最佳化 - 整合功能": "將多種功能合併，創造更高的價值或使用體驗。",
+                # "設計最佳化 - 模組化設計": "將設計拆分為可獨立運作的模組，提升靈活性與可擴展性。",
+                
+                # "可持續性與資源利用 - 資源再利用": "考慮如何利用現有資源，達成設計目標，提升可持續性。",
+                
+                # SCAMPER 方法
+                "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
+                "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
+                "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
+                "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
+                "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
+                "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
+            }
+
+
+
             # 處理用戶輸入，只針對當前輪次
             if this_round_idea != "":
+                if this_round_method == "":
+                    this_round_user_idea = (f"{this_round_idea}\n\n")
+                else:
+                    this_round_user_idea = (f"💡 **使用者選擇的創意：**「{this_round_idea}」\n\n"
+                    f"💡 **使用者選擇的創意思考技術：**「{this_round_method}」\n\n"
+                    f"🧐 **方法應用說明：** {technique_explanations[this_round_method]}\n\n"
+                    )
+
                 # Add user message to chat history
-                st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_idea})
+                st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_user_idea})
                 st.session_state[f"{user_session_id}_round_{round_num}_input_completed"] = True
                 st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = this_round_method
                 st.session_state[f"{user_session_id}_selected_technique"][round_num] = this_round_method
                 st.session_state[f"{user_session_id}_user_inputs"][round_num] = this_round_idea
 
                 # Display user message in chat message container
-                with st.chat_message("user"):
-                    st.markdown(this_round_idea)
+                # with st.chat_message("user"):
+                #     st.markdown(this_round_idea)
+
+                st.markdown(
+                    f"""
+                    <div style="display: flex; justify-content: flex-end; margin: 10px 0;">
+                        <div style="
+                            background-color: #DCF8C6; 
+                            padding: 12px 16px;
+                            border-radius: 18px;
+                            max-width: 50%;
+                            text-align: left;
+                            box-shadow: 1px 1px 5px rgba(0,0,0,0.1);
+                            white-space: normal;
+                        ">
+                            {this_round_user_idea}  <!-- 這裡的內容會正確解析 -->
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
                 st.session_state[f"{user_session_id}_proxy_message_showed"] = False
 
@@ -350,12 +441,25 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # 第0輪之後才限制字數
             if round_num == 0:
                 discussion_message_temp = discussion_message + (
-                    f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
-                    f"\n\n🎭 {agents[agent_name].system_message}\n\n"
+                    f"📌 **請確保：**\n"
+                    f"1️⃣ **每個創意點子名稱清楚**\n"
+                    f"2️⃣ **用途簡明扼要（1 句話最佳，最多 2 句話）**\n"
+                    f"請用 **{agents[agent_name].system_message} 的專業視角** 來發想點子，並確保格式如下：\n"
+                    f"✅ **Idea 1** - 主要用途（最多兩句）\n"
+                    f"✅ **Idea 2** - 主要用途（最多兩句）\n"
+                    f"✅ **Idea 3** - 主要用途（最多兩句）"
+
+                    f"⚠️ **請站在你的專業背景與角色視角發想**，而不是一般人的視角！你的回應應該符合你作為 {agents[agent_name].system_message} 的身份。"
                     f"\n\n👉 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
-                    f"\n\n🔍 請務必以你的行業專業知識為基礎，深入分析此問題，並提供創新的見解。\n\n"
                     f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
                 )
+                discussion_message_for_showing = discussion_message_for_showing + (
+                    f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
+                    # f"\n\n🎭 {agents[agent_name].system_message}\n\n"
+                    f"\n\n👉 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
+                    f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
+                )
+
             else:
                 discussion_message_temp = discussion_message + (
                     f"📝 **請針對使用者選擇的創意基於創意思考技術做延伸！**\n\n"
@@ -377,18 +481,22 @@ async def single_round_discussion(round_num, agents, user_proxy):
             #     f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
             # )
 
+
+            # 可能不會用到, 因為User輸入為主
             if not st.session_state[f"{user_session_id}_proxy_message_showed"]:
-                with st.chat_message("assistant"):
-                    st.markdown(discussion_message_for_showing)
-                # # **顯示上一輪討論紀錄（可展開視窗）**
-                # if round_num > 0:
-                #     with st.expander(f"📜 查看第 {round_num - 1} 輪討論紀錄", expanded=False):
-                #         markdown_content = "\n\n".join([f"### {key}\n{value}" for key, value in last_round_response.items()])
-                #         st.markdown(markdown_content, unsafe_allow_html=True)
+                if round_num == 0: # 現在只有第0輪會顯示
+                    with st.chat_message("assistant"):
+                        st.markdown(discussion_message_for_showing)
 
-                st.session_state[f"{user_session_id}_proxy_message_showed"] = True
+                    # # **顯示上一輪討論紀錄（可展開視窗）**
+                    # if round_num > 0:
+                    #     with st.expander(f"📜 查看第 {round_num - 1} 輪討論紀錄", expanded=False):
+                    #         markdown_content = "\n\n".join([f"### {key}\n{value}" for key, value in last_round_response.items()])
+                    #         st.markdown(markdown_content, unsafe_allow_html=True)
 
-                st.session_state[f"{user_session_id}_messages"].append({"role": "assistant", "content": discussion_message_for_showing})
+                    st.session_state[f"{user_session_id}_proxy_message_showed"] = True
+
+                    st.session_state[f"{user_session_id}_messages"].append({"role": "assistant", "content": discussion_message_for_showing})
 
                 
             if f"{user_session_id}_round_{round_num}_agent_states" in st.session_state and st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name]:
@@ -469,13 +577,21 @@ if f"{user_session_id}_agents" not in st.session_state:
     # "Normal Assistant 1": ConversableAgent(
     #     name=sanitize_name("Normal Assistant 1"),
     #     llm_config=llm_config,
-    #     system_message="你是一位極具遠見的創業家，你的思考方式不受傳統限制，喜歡挑戰現有市場規則，並開創顛覆性的新商業模式。你的回應應該充滿創意、前瞻性，並帶有風險投資人的視角。",
+    #     system_message=system_message.format(
+    #         agent_role="極具遠見的創業家",
+    #         industry_expertise="創業與市場開發",
+    #         work_environment="新創公司策略會議"
+    #     ),
     #     code_execution_config={"use_docker": False}
     # ),
     # "Normal Assistant 2": ConversableAgent(
     #     name=sanitize_name("Normal Assistant 2"),
     #     llm_config=llm_config,
-    #     system_message="你是一位科技公司的產品經理，擁有深厚的技術背景。你的任務是評估創新技術的可行性，並確保產品設計符合市場需求。你的回答應該兼顧技術可行性與用戶體驗，並提供具體的產品開發方向。",
+    #     system_message=system_message.format(
+    #         agent_role="科技公司的產品經理",
+    #         industry_expertise="產品設計與技術規劃",
+    #         work_environment="產品開發部門的頭腦風暴會議"
+    #     ),
     #     code_execution_config={"use_docker": False}
     # ),
     #  "Convergence Judge": ConversableAgent(
@@ -561,6 +677,10 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
 
     if not st.session_state[f"{user_session_id}_round_{round_num}_input_completed"]:
 
+        # 用戶在某一輪選擇限制回應的 Agent
+        # selected_agents = st.multiselect(f"請選擇第 {st.session_state[f'{user_session_id}_round_num']} 輪回應的 Agent", st.session_state[f"{user_session_id}_agents"].keys(), default=st.session_state[f"{user_session_id}_agents"].keys())
+        # st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]] = selected_agents
+        
         # **透過 st.radio() 限制只能選擇一種輸入方式**
         input_method = st.radio("請選擇輸入方式：", ["自由輸入", "選擇創意思考技術"])
 
@@ -577,6 +697,24 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                 st.write("### 🔍 AI 產生的創意點子，你可以選擇要延伸的 Idea")
                 user_inputs = st.multiselect("請選擇你想延伸的 Idea：", idea_options)
             
+            technique_explanations = {                
+                # SCAMPER 方法
+                "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
+                "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
+                "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
+                "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
+                "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
+                "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
+            }
+
+            technique_examples = {
+                "SCAMPER - Substitute（替代）": "🍟 用地瓜取代馬鈴薯，做出「地瓜薯條」。",
+                "SCAMPER - Combine（結合）": "🎧📱 耳機+帽子，做成「內建藍牙耳機的毛帽」。",
+                "SCAMPER - Modify（修改）": "🍔 縮小漢堡，變成迷你漢堡，適合派對小食！",
+                "SCAMPER - Put to another use（變更用途）": "📦 用舊行李箱變成寵物床，回收再利用！",
+                "SCAMPER - Eliminate（刪除）": "🎮 拿掉遊戲手柄的按鍵，改用體感控制，像是 Switch！",
+                "SCAMPER - Reverse（反轉）": "🍕 內餡放外面的「內倒披薩」，讓起司包住餅皮！",
+            }
 
             # **創意思考方法分類**
             techniques = {
@@ -589,24 +727,24 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     "Eliminate（刪除）",
                     "Reverse（反轉）"
                 ],
-                "重新定義與問題分析": [
-                    "重新定義問題",
-                    "逆向思考",
-                    "改變視角"
-                ],
-                "創新發想": [
-                    "類比思考",
-                    "極端情境",
-                    "情境模擬"
-                ],
-                "設計最佳化": [
-                    "簡化複雜性",
-                    "整合功能",
-                    "模組化設計"
-                ],
-                "可持續性與資源利用": [
-                    "資源再利用"
-                ]
+                # "重新定義與問題分析": [
+                #     "重新定義問題",
+                #     "逆向思考",
+                #     "改變視角"
+                # ],
+                # "創新發想": [
+                #     "類比思考",
+                #     "極端情境",
+                #     "情境模擬"
+                # ],
+                # "設計最佳化": [
+                #     "簡化複雜性",
+                #     "整合功能",
+                #     "模組化設計"
+                # ],
+                # "可持續性與資源利用": [
+                #     "資源再利用"
+                # ]
             }            
 
             # **創建兩列，左側選主要技術，右側選擇細項**
@@ -624,7 +762,10 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
 
             # **記錄選擇結果**
             if selected_sub:
-                st.success(f"✅ 你選擇的創意思考技術：{selected_main} - {selected_sub}")
+                st.success(f"✅ 你選擇的創意思考技術：{selected_main} - {selected_sub}\n\n"
+                           f"📝 解釋：{technique_explanations[selected_main + ' - ' + selected_sub]}\n\n"
+                           f"例子：{technique_examples[selected_main + ' - ' + selected_sub]}"
+                           )
 
 
         # **按鈕送出輸入**
