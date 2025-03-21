@@ -16,6 +16,7 @@ import os
 import shutil
 import markdown2
 
+
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
 # 設定 Streamlit 頁面
@@ -695,8 +696,12 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                 idea_options = st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", [])
                 
                 st.write("### 🔍 AI 產生的創意點子，你可以選擇要延伸的 Idea")
-                user_inputs = st.multiselect("請選擇你想延伸的 Idea：", idea_options)
-            
+                # 移除 Markdown 標記
+                idea_options_cleaned = [re.sub(r'(\*\*|__)(.*?)\1', r'\2', idea) for idea in idea_options]
+
+                # 傳入 multiselect
+                user_inputs = st.multiselect("請選擇你想延伸的 Idea：", idea_options_cleaned)          
+
             technique_explanations = {                
                 # SCAMPER 方法
                 "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
