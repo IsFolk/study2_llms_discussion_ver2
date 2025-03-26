@@ -17,6 +17,7 @@ import shutil
 import markdown2
 
 
+
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
 # 設定 Streamlit 頁面
@@ -230,14 +231,15 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
         # 用於顯示給使用者的內容（簡化版）
         discussion_message_for_showing = f"請提供與 **{st.session_state[f"{user_session_id}_user_question"]}** 相關的創意點子，每個點子附加簡單用途即可。"
-
     else:
+
+        # 上一輪的討論紀錄  
         last_round_response = {}
-        # 上一輪的討論紀錄
         for agent_name, response in st.session_state[f"{user_session_id}_this_round_combined_responses"].items():
             if agent_name in ["User"]:
                 continue
             last_round_response[agent_name] = response
+
 
         if st.session_state[f"{user_session_id}_current_input_method"] == "選擇創意思考技術":
             # **創意思考技術對應的解釋**
@@ -287,9 +289,6 @@ async def single_round_discussion(round_num, agents, user_proxy):
             discussion_message_for_showing = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
 
     for agent_name, agent in agents.items():
-        if agent_name in ["Convergence Judge"]:
-            continue
-
         # 最後一個 agent 後等待user_input後再進行下一輪
         if agent_name == "User":
             this_round_method = st.session_state[f"{user_session_id}_selected_technique"].get(round_num, "")
@@ -359,7 +358,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 # Add user message to chat history
                 st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_user_idea})
                 st.session_state[f"{user_session_id}_round_{round_num}_input_completed"] = True
-                st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = this_round_method
+                st.session_state[f"{user_session_id}_this_round_combined_responses"]["User"] = this_round_method
                 st.session_state[f"{user_session_id}_selected_technique"][round_num] = this_round_method
                 st.session_state[f"{user_session_id}_user_inputs"][round_num] = this_round_idea
 
@@ -487,23 +486,21 @@ async def single_round_discussion(round_num, agents, user_proxy):
                             )
                 
 
-                # st.write(f"{agent_name} 進行中")
-                # st.write(f"{st.session_state.get(f"{user_session_id}_ai_feedback_enabled", False)}")
-                # st.write(f"peer_feedback_block: {peer_feedback_block}")
-                # st.write(f"last_round_response: {last_round_response}")
-
                 discussion_message_temp = discussion_message + (
+                    f"除了以上以外，你是{agent_name}\n\n"
                     f"{peer_feedback_block}"
                     f"📝 **請針對使用者選擇的創意基於創意思考技術做延伸！**\n\n"
-                    f"請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。"
                     f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
                     f"\n\n🎭 {agents[agent_name].system_message}\n\n"
                     f"\n\n👉 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
                     f"\n\n🔍 請務必以你的行業專業知識為基礎，深入分析此問題，並提供創新的見解。\n\n"
                     f"\n\n⚠️ 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
+                    f"\n\n請先回應你是{agent_name}，再開始你的回答\n\n"
+                    f"\n\n請用簡潔的方式回應這個問題（或話題）：[你的問題或話題]，語氣像是專業人士在討論，且回答不超過兩句話，重要的地方用粗體呈現。\n\n"
+
                 )
 
-
+            # st.session_state[f"{user_session_id}_this_round_combined_responses"]["proxy"] = discussion_message_temp
             # # 沒辦法放general system_message, 因為有2個agents
             # discussion_message_for_showing =  discussion_message_for_showing + (
             #     f"\n\n📢 請根據你的專業視角回答！ 🚀\n\n"
@@ -705,32 +702,33 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     st.rerun()  # **重新刷新頁面**
 
     if not st.session_state[f"{user_session_id}_round_{round_num}_input_completed"]:
-        # radio 的 label 留空字串避免重複顯示
-        input_method = st.radio(
-            label="**輸入方式**",
-            options=["自由輸入", "選擇創意思考技術"],
-            # label_visibility="collapsed"  # 隱藏 label
-        )
 
-        if input_method == "自由輸入":
+        tab1, tab2 = st.tabs(["**📝自由輸入**", "**🧠選擇創意思考技術**"])
+
+        with tab1:
             # **方式 1：自由輸入**
+            input_method = "自由輸入"
             with st.container(border=True):
                 user_inputs = st.text_area(f"請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：")
 
-        elif input_method == "選擇創意思考技術":
+        with tab2:
             # **方式 2：使用 selectbox 選擇創意思考技術**
+            input_method = "選擇創意思考技術"
             with st.container(border=True):
+                idea_source = st.radio(f"**選擇創意來源**", [f"💡 **第 {round_num} 輪 AI 產生的創意點子**", "📌 **已收藏的 Idea**"])
+                if idea_source == f"💡 **第 {round_num} 輪 AI 產生的創意點子**":
+                    if st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", []):
+                        idea_options = st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", [])
+                else:
+                    idea_options = list(st.session_state[f"{user_session_id}_selected_persistent_ideas"].keys())
 
-                # 輸入選定的 Idea
-                if st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", []):
-                    
-                    idea_options = st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", [])
-                    
-                    # 移除 Markdown 標記
-                    idea_options_cleaned = [re.sub(r'(\*\*|__)(.*?)\1', r'\2', idea) for idea in idea_options]
+                # 🔧 移除 Markdown 格式
+                idea_options_cleaned = [re.sub(r'(\*\*|__)(.*?)\1', r'\2', idea) for idea in idea_options]
 
-                    # 傳入 Idea 的多選選項
-                    user_inputs = st.multiselect("請選擇你想延伸的 Idea：", idea_options_cleaned)
+
+                # 傳入 Idea 的多選選項
+                user_inputs = st.multiselect(f"**請選擇您想延伸的Idea（來源：{idea_source}）**", idea_options_cleaned)
+                
             
 
                 technique_explanations = {                
@@ -768,7 +766,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
 
                 # 讓 radio 水平排列
                 selected_scamper = st.radio(
-                    "請選擇要使用的創意技術",
+                    f"**請選擇要使用的創意技術：**",
                     scamper_options,
                     horizontal=True  # 💡 讓選項橫向排列
                 )
@@ -848,31 +846,32 @@ if f"{user_session_id}_show_idea_dialog" not in st.session_state:
 if f"{user_session_id}_is_loading" not in st.session_state:
     st.session_state[f"{user_session_id}_is_loading"] = False  # 控制 `st.spinner()` 顯示狀態
 
-# **側邊欄：已收藏的 Idea**
 with st.sidebar:
-    with st.expander("📌 **已收藏的 Idea**", expanded=False):  # 默認為折疊狀態
+        
+    with st.expander("📌 **已收藏的 Idea**", expanded=False):
         if not st.session_state[f"{user_session_id}_selected_persistent_ideas"]:
             st.info("目前沒有收藏的 Idea。")
         else:
             ideas_to_remove = []
-            for idea, round_collected in st.session_state[f"{user_session_id}_selected_persistent_ideas"].items():                
+            for idea, round_collected in st.session_state[f"{user_session_id}_selected_persistent_ideas"].items():
                 col1, col2 = st.columns([0.85, 0.15])
 
                 with col1:
-                    st.write(f"✅ {idea}  （第 {round_collected} 輪）")  # **顯示 Idea + 輪數**
+                    st.write(f"✅ **{idea}**  \n（第 {round_collected} 輪）")
+
                 with col2:
-                    if st.button("🗑️", key=f"delete_saved_{idea}", use_container_width=True):  # 讓按鈕撐滿
+                    if st.button(":material/delete:", key=f"delete_saved_{idea}", help="刪除這個 Idea", use_container_width=True):
                         ideas_to_remove.append(idea)
 
-            # **刪除選定的 Idea 並移回可選清單**
+            # 刪除邏輯
             if ideas_to_remove:
                 for idea in ideas_to_remove:
                     del st.session_state[f"{user_session_id}_selected_persistent_ideas"][idea]
                     if idea not in st.session_state[f"{user_session_id}_idea_list"]:
-                        st.session_state[f"{user_session_id}_idea_list"].append(idea)  # **移回可選清單**
+                        st.session_state[f"{user_session_id}_idea_list"].append(idea)
 
-                st.warning(f"已移除 {len(ideas_to_remove)} 個收藏的 Idea")
-                st.rerun()  # **刷新 UI**
+                st.warning(f"🗑️ 已移除 {len(ideas_to_remove)} 個收藏的 Idea")
+                st.rerun()
 
 
 # 清除紀錄
@@ -914,4 +913,4 @@ with st.sidebar:
     st.session_state[f"{user_session_id}_ai_feedback_enabled"] = st.checkbox(
         "讓 AI 自動互相回饋"
     )
-    st.write(f"ai_feedback_enabled: {st.session_state[f"{user_session_id}_ai_feedback_enabled"]}")
+    # st.write(f"ai_feedback_enabled: {st.session_state[f"{user_session_id}_ai_feedback_enabled"]}")
