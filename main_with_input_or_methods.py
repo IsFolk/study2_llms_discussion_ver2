@@ -827,6 +827,17 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     "Reverse（反轉）"
                 ]
 
+                # SCAMPER 方法對應的最大 Idea 數量限制
+                scamper_idea_limits = {
+                    "Substitute（替代）": 1,
+                    "Combine（結合）": 2,
+                    "Modify（修改）": 1,
+                    "Put to another use（變更用途）": 1,
+                    "Eliminate（刪除）": 1,
+                    "Reverse（反轉）": 1
+                }
+
+
                 # 建立水平選單
                 cols = st.columns(len(scamper_options))  # 建立 N 個欄位
                 selected_scamper = None  # 初始化選擇變數
@@ -838,6 +849,11 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     horizontal=True  # 💡 讓選項橫向排列
                 )
 
+                # ⛔ 檢查選取的 Idea 數量是否超過限制
+                max_allowed = scamper_idea_limits.get(selected_scamper, 1)
+
+                st.caption(f"⚙️ 技術「{selected_scamper}」最多只能選擇 {max_allowed} 個創意點子")
+
                 # 顯示說明與例子
                 if selected_scamper:
                     st.success(
@@ -845,6 +861,11 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                         f"📝 解釋：{technique_explanations[f"SCAMPER - {selected_scamper}"]}\n\n"
                         f"💡 例子：{technique_examples[f"SCAMPER - {selected_scamper}"]}"
                 )
+                    
+
+                if len(user_inputs) > max_allowed:
+                    st.warning(f"⚠️ 已超過最大選擇數量（{max_allowed} 個），請減少選擇的 Idea。")
+                    st.stop()  # 或者 st.session_state 鎖住送出按鈕
                     
             with st.expander(f"**🤖 AI 回應設定**", expanded=False):  # 預設不展開
                 # 限制可選的 Agent 為 "Businessman" 和 "Engineer"
