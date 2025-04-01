@@ -595,43 +595,8 @@ if f"{user_session_id}_user_proxy" not in st.session_state:
 if f"{user_session_id}_agents" not in st.session_state:
     st.session_state[f"{user_session_id}_agents"] = {
 
-        # "Businessman": ConversableAgent(
-        #     name=sanitize_name(f"Businessman_{user_session_id}"),  # 讓名稱獨立
-        #     llm_config=llm_config,
-        #     system_message=system_message.format(
-        #         agent_role="極具遠見的創業家",
-        #         industry_expertise="創業與市場開發",
-        #         work_environment="新創公司策略會議"
-        #     ),
-        #     code_execution_config={"use_docker": False}
-        # ),
-        # "Engineer": ConversableAgent(
-        #     name=sanitize_name(f"Engineer_{user_session_id}"),
-        #     llm_config=llm_config,
-        #     system_message=system_message.format(
-        #         agent_role="科技公司的產品經理",
-        #         industry_expertise="產品設計與技術規劃",
-        #         work_environment="產品開發部門的頭腦風暴會議"
-        # ),
-        #     code_execution_config={"use_docker": False}
-        # ),
-        # "Assistant": ConversableAgent(
-        #     name=sanitize_name(f"Assistant_{user_session_id}"),
-        #     llm_config=llm_config,
-        #     system_message="你是 Assistant，負責將點子...",
-        #     code_execution_config={"use_docker": False}
-        # ),
-        # "User": UserProxyAgent(
-        #     name=sanitize_name(f"User_{user_session_id}"),  # 讓 User 名稱唯一
-        #     llm_config=llm_config,
-        #     human_input_mode="NEVER",
-        #     code_execution_config={"use_docker": False}
-        # ),
-
-
-        # 只有testing的時候為了省token才會用這個
         "Businessman": ConversableAgent(
-            name=sanitize_name("Businessman"),
+            name=sanitize_name(f"Businessman_{user_session_id}"),  # 讓名稱獨立
             llm_config=llm_config,
             system_message=system_message.format(
                 agent_role="極具遠見的創業家",
@@ -641,27 +606,62 @@ if f"{user_session_id}_agents" not in st.session_state:
             code_execution_config={"use_docker": False}
         ),
         "Engineer": ConversableAgent(
-            name=sanitize_name("Engineer"),
+            name=sanitize_name(f"Engineer_{user_session_id}"),
             llm_config=llm_config,
             system_message=system_message.format(
                 agent_role="科技公司的產品經理",
                 industry_expertise="產品設計與技術規劃",
                 work_environment="產品開發部門的頭腦風暴會議"
-            ),
+        ),
             code_execution_config={"use_docker": False}
         ),
         "Assistant": ConversableAgent(
-            name=sanitize_name("Assistant"),
+            name=sanitize_name(f"Assistant_{user_session_id}"),
             llm_config=llm_config,
-            system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
+            system_message="你是 Assistant，負責將點子...",
             code_execution_config={"use_docker": False}
         ),
         "User": UserProxyAgent(
-            name=sanitize_name("User"),
+            name=sanitize_name(f"User_{user_session_id}"),  # 讓 User 名稱唯一
             llm_config=llm_config,
             human_input_mode="NEVER",
             code_execution_config={"use_docker": False}
         ),
+
+
+        # # 只有testing的時候為了省token才會用這個
+        # "Businessman": ConversableAgent(
+        #     name=sanitize_name("Businessman"),
+        #     llm_config=llm_config,
+        #     system_message=system_message.format(
+        #         agent_role="極具遠見的創業家",
+        #         industry_expertise="創業與市場開發",
+        #         work_environment="新創公司策略會議"
+        #     ),
+        #     code_execution_config={"use_docker": False}
+        # ),
+        # "Engineer": ConversableAgent(
+        #     name=sanitize_name("Engineer"),
+        #     llm_config=llm_config,
+        #     system_message=system_message.format(
+        #         agent_role="科技公司的產品經理",
+        #         industry_expertise="產品設計與技術規劃",
+        #         work_environment="產品開發部門的頭腦風暴會議"
+        #     ),
+        #     code_execution_config={"use_docker": False}
+        # ),
+        # "Assistant": ConversableAgent(
+        #     name=sanitize_name("Assistant"),
+        #     llm_config=llm_config,
+        #     system_message="你是 Assistant，負責將點子按照 主題、應用場景、技術方向 等分類，轉化為條列式清單。",
+        #     code_execution_config={"use_docker": False}
+        # ),
+        # "User": UserProxyAgent(
+        #     name=sanitize_name("User"),
+        #     llm_config=llm_config,
+        #     human_input_mode="NEVER",
+        #     code_execution_config={"use_docker": False}
+        # ),
     }
 
 if not st.session_state.get(f"{user_session_id}_discussion_started", False):
