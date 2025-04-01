@@ -56,7 +56,7 @@ system_message = """
 with st.sidebar:
     with st.expander("**模型與 API 設定**", expanded=False):  # 預設折疊
         st.header("模型與 API 設定")
-        selected_model = st.selectbox("選擇模型", ["gpt-4o-mini", "gpt-4o"], index=0)
+        selected_model = st.selectbox("選擇模型", ["gpt-4o-mini", "gpt-4o"], index=1)
         base_url = None
         if "gpt" not in selected_model:
             base_url = st.text_input("API 端點", "http://127.0.0.1:1234/v1")
