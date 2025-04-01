@@ -191,6 +191,25 @@ def initialize_agent_states(round_num, agents):
             agent_name: False for agent_name in agents.keys()
         }
 
+def safe_markdown_blocks(text):
+    lines = text.split('\n')
+    blocks = [line.strip() for line in lines if line.strip()]
+    return blocks
+import re
+
+def smart_sentence_split(text):
+    if "**" in text or "__" in text:
+        # 粗體存在時，用更聰明的正則避免切壞
+        pattern = r'(?<=[。！？.!?])(?!(\s?(?:\*\*|__|\*|_)))'
+        sentences = re.split(pattern, text)
+        sentences = [s.strip() for s in sentences if s and s.strip()]
+        
+    else:
+        # 沒有 Markdown 粗體，就用一般分句規則
+        sentences = re.split(r'(?<=[。！？.!?])', text)
+    
+    return [s.strip() for s in sentences if s.strip()]
+
 # Display chat messages from history on app rerun
 for message in st.session_state[f"{user_session_id}_messages"]:
 
@@ -221,8 +240,15 @@ for message in st.session_state[f"{user_session_id}_messages"]:
     #         st.markdown(message["content"], unsafe_allow_html=True)
     else:
         with st.chat_message(agent_avatars.get(message["role"], message["role"]), avatar=agent_avatars.get(message["role"], message["role"])):
-            st.markdown(message["content"])
+            sentences = re.split(r'(?<=[。！？.!?])', message["content"])
+            sentences = [s.strip() for s in sentences if s.strip()]
+            sentences = smart_sentence_split(message["content"])
 
+            for sentence in sentences:
+                html = markdown2.markdown(sentence)
+                st.markdown(html, unsafe_allow_html=True)
+                # st.markdown(sentence)
+           
 # 更新某代理的回覆狀態
 def mark_agent_completed(round_num, agent_name):
     st.session_state[f"{user_session_id}_round_{round_num}_agent_states"][agent_name] = True
@@ -233,7 +259,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
     if round_num == 0:
         discussion_message = (
-            f"🚀 **第 {round_num} 輪討論** 🚀\n\n"
+            f"**第 {round_num} 輪討論**\n\n"
             f"請直接列出與『{st.session_state[f'{user_session_id}_user_question']}』相關的創新點子，每個點子請附上一句簡短的主要用途，最多 **不超過兩句**。\n\n"
         )
 
@@ -256,6 +282,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 # SCAMPER 方法
                 "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
                 "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
+                "SCAMPER - Adapt（適應）": "將一個產品的特性應用到另一個產品上。",
                 "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
                 "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
                 "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
@@ -314,6 +341,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 # SCAMPER 方法
                 "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
                 "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
+                "SCAMPER - Adapt（適應）": "將一個產品的特性應用到另一個產品上。",
                 "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
                 "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
                 "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
@@ -426,7 +454,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     f"\n\n- 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
                 )
                 discussion_message_for_showing = discussion_message_for_showing + (
-                    f"\n\n- 請根據你的專業視角回答！ 🚀\n\n"
+                    f"\n\n- 請根據你的專業視角回答！\n\n"
                     # f"\n\n🎭 {agents[agent_name].system_message}\n\n"
                     f"\n\n- 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
                     f"\n\n- 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
@@ -478,7 +506,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     f"如果你對某些觀點有想回應、整合或補充的，也可以一起說明，順便提一下是從基於誰的回應中受到啟發。\n\n"
                     # f"3.最後，不妨總結一下以上兩點的潛在價值。請像你在會議中提出策略建議一樣，用專業但自然的語氣回應，約 2~4 句話即可。\n\n"
                     f"請不要用列點式回答，而是用自然語言描述，讓回答更有條理和連貫。\n\n"
-                    f"以上全部簡短四句內回答，重要的地方以粗體表示。\n\n"
+                    f"以上1跟2綜合變成簡短兩句內回答，重點以粗體表示。\n\n"
                     f"---\n\n"
                 )
 
@@ -511,31 +539,15 @@ async def single_round_discussion(round_num, agents, user_proxy):
             st.session_state[f"{user_session_id}_this_round_combined_responses"][agent_name] = response
 
             # 切成句子（也可以自訂切法）
-            sentences = re.split(r'(?<=[。！？])', response.strip())
-            sentences = [s.strip() for s in sentences if s.strip()]
-            js_array = "[" + ",".join([f"`{s}`" for s in sentences]) + "]"
+            # sentences = re.split(r'(?<=[。！？])', response.strip())
+            # sentences = [s.strip() for s in sentences if s.strip()]
+            # js_array = "[" + ",".join([f"`{s}`" for s in sentences]) + "]"
+            
 
             with st.chat_message(agent_avatars.get(agent_name, agent_name), avatar=agent_avatars.get(agent_name, agent_name)):
-                # message_placeholder = st.empty()
-                # streamed_response = ""
+                fadein_markdown(response)
 
-                # for chunk in response:
-                #     for char in chunk:
-                #         streamed_response += char
-                #         message_placeholder.markdown(streamed_response)
-                #         time.sleep(0.01)  # 或 0.02
-
-
-
-
-
-                # st.write_stream(stream_sentences(sentences))
-                st.write_stream(stream_word(response))
-
-
-                
-                # components.html(render_fadein(agent_name, response), height=len(sentences)*35 + 80)
-
+            
 
             # Add assistant response to chat history
             st.session_state[f"{user_session_id}_messages"].append({"role": agent_name, "content": response})
@@ -543,62 +555,30 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # st.write(f"登記 {agent_name} 完成")
  
     # return True
-def stream_sentences(sentences):
+
+def fadein_markdown(md_text, delay=0.4):
+    # 切句：遇到中英文標點就分句
+    sentences = smart_sentence_split(md_text)
+
+    # 注入 fade-in CSS
+    st.markdown("""
+    <style>
+    .fade-in {
+        opacity: 0;
+        animation: fadeInAnim 0.6s ease forwards;
+    }
+    @keyframes fadeInAnim {
+        to { opacity: 1; }
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 一句一句顯示
     for sentence in sentences:
-        yield sentence + "\n\n"
-        time.sleep(0.4)  # 節奏可調整
+        html = markdown2.markdown(sentence)
+        st.markdown(f"<div class='streamlit-default fade-in'>{html}</div>", unsafe_allow_html=True)
+        time.sleep(delay)
 
-def stream_word(word):
-    for char in word:
-        yield char
-        time.sleep(0.05)  # 節奏可調整
-
-def split_sentences(text):
-    # 用標點符號切句（適用中英文）
-    sentences = re.split(r'(?<=[。！？.!?])', text)
-    return [s.strip() for s in sentences if s.strip()]
-
-def render_fadein(agent_name, content: str) -> str:
-    sentences = split_sentences(content)
-    html_content = """
-    <div style="
-        background-color: #ffffff;
-        color: rgb(49, 51, 63);
-        font-family: 'Source Sans Pro', sans-serif;
-        font-size: 1rem;
-        font-weight: 400;
-        line-height: 1.6;
-        padding: 12px 16px;
-        border-radius: 18px;
-        box-shadow: 1px 1px 5px rgba(0,0,0,0.05);
-    ">
-    """
-
-    for i, sentence in enumerate(sentences):
-        html_sentence = markdown2.markdown(sentence.strip())
-        html_content += f"""
-        <div id="s{i}" style="opacity: 0; margin-bottom: 12px; transition: opacity 0.6s ease;">
-            {html_sentence}
-        </div>
-        """
-
-    html_content += f"""
-    </div>
-    <script>
-        function fadeInSentences() {{
-            const delay = 300;
-            const total = {len(sentences)};
-            for (let i = 0; i < total; i++) {{
-                setTimeout(() => {{
-                    document.getElementById('s' + i).style.opacity = 1;
-                }}, i * delay);
-            }}
-        }}
-        fadeInSentences();
-    </script>
-    """
-
-    return html_content
 
 # 在輸入框消失後顯示提示，然後再顯示下一輪輸入框
 if not st.session_state[f"{user_session_id}_show_input"]:
@@ -812,6 +792,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
                     "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
                     "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
+                    "SCAMPER - Adapt（適應）": "將一個產品的特性應用到另一個產品上。",
                     "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
                     "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
                     "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
@@ -820,6 +801,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                 technique_examples = {
                     "SCAMPER - Substitute（替代）": "用地瓜取代馬鈴薯，做出「地瓜薯條」。",
                     "SCAMPER - Combine（結合）": "耳機+帽子，做成「內建藍牙耳機的毛帽」。",
+                    "SCAMPER - Adapt（適應）": "將運動鞋的設計靈感用在辦公拖鞋上，讓久站的工作者也能獲得支撐和舒適。",
                     "SCAMPER - Modify（修改）": "縮小漢堡，變成迷你漢堡，適合派對小食！",
                     "SCAMPER - Put to another use（變更用途）": "用舊行李箱變成寵物床，回收再利用！",
                     "SCAMPER - Eliminate（刪除）": "拿掉遊戲手柄的按鍵，改用體感控制，像是 Switch！",
@@ -831,6 +813,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     "Substitute（替代）",
                     "Combine（結合）",
                     "Modify（修改）",
+                    "Adapt（適應）",
                     "Put to another use（變更用途）",
                     "Eliminate（刪除）",
                     "Reverse（反轉）"
@@ -840,6 +823,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                 scamper_idea_limits = {
                     "Substitute（替代）": 1,
                     "Combine（結合）": 2,
+                    "Adapt（適應）": 1,
                     "Modify（修改）": 1,
                     "Put to another use（變更用途）": 1,
                     "Eliminate（刪除）": 1,
