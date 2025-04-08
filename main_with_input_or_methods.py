@@ -455,11 +455,12 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     f"1.  **每個創意點子名稱清楚**\n"
                     f"2.  **用途簡明扼要（1 句話最佳，最多 2 句話）**\n"
                     f" {agents[agent_name].system_message}\n\n"
-                    f"請用以上的專業視角來發想點子，並確保格式如下：\n"
+                    f"請用以上的角色設定來發想點子，並確保格式如下：\n"
                     f"✅ **Idea 1** - 主要用途（最多兩句）\n"
                     f"✅ **Idea 2** - 主要用途（最多兩句）\n"
                     f"✅ **Idea 3** - 主要用途（最多兩句）\n"
                     f"✅ **Idea N** - 主要用途（最多兩句）\n"
+                    f"確保以zh-TW語言回應。\n\n"
 
                 )
                 discussion_message_for_showing = discussion_message_for_showing + (
@@ -1054,24 +1055,24 @@ def strip_markdown(text):
     return text.strip()
 
 
-# 清除紀錄
-with st.sidebar:
-    if st.button("重新開始創意思考"):
-        # 清空所有與當前 user_session_id 相關的 session_state 變數
-        keys_to_delete = [key for key in st.session_state.keys() if key.startswith(user_session_id)]
-        for key in keys_to_delete:
-            del st.session_state[key]
+# # 清除紀錄
+# with st.sidebar:
+#     if st.button("重新開始創意思考"):
+#         # 清空所有與當前 user_session_id 相關的 session_state 變數
+#         keys_to_delete = [key for key in st.session_state.keys() if key.startswith(user_session_id)]
+#         for key in keys_to_delete:
+#             del st.session_state[key]
 
-        st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
-        st.cache_resource.clear()
+#         st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
+#         st.cache_resource.clear()
 
-        # **1️⃣ 重新生成新的 session ID**
-        new_session_id = str(uuid.uuid4())
-        st.session_state["user_session_id"] = new_session_id
-        user_session_id = new_session_id  # 更新變數
+#         # **1️⃣ 重新生成新的 session ID**
+#         new_session_id = str(uuid.uuid4())
+#         st.session_state["user_session_id"] = new_session_id
+#         user_session_id = new_session_id  # 更新變數
 
-        # 顯示成功訊息
-        st.success("已清除所有紀錄！")
+#         # 顯示成功訊息
+#         st.success("已清除所有紀錄！")
 
-        # **強制重新執行整個程式，確保 UI 更新**
-        st.rerun()
+#         # **強制重新執行整個程式，確保 UI 更新**
+#         st.rerun()
