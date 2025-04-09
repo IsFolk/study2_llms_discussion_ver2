@@ -23,9 +23,11 @@ import streamlit.components.v1 as components
 
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
+title_setting = "LLM + Human Discussion Framework:"+ "\n" +"✔ Personas + ✔ Free Text Input + ✔ SCAMPER"
+
 # 設定 Streamlit 頁面
-st.set_page_config(page_title="LLM & Human Discussion Framework", page_icon="🧑", layout="wide")
-st.title("LLM + Human Discussion Framework")
+st.set_page_config(page_title=title_setting, page_icon="🧑", layout="wide")
+st.title(title_setting)
 
 # 讓每個使用者有獨立的 session ID
 if "user_session_id" not in st.session_state:
@@ -743,9 +745,9 @@ if not st.session_state.get(f"{user_session_id}_discussion_started", False):
         "請選擇討論問題",
         # "風箏除了娛樂，還能用什麼其他創意用途？",
         # "枕頭除了睡覺，還能如何幫助放鬆或解決日常問題？",
-        "掃帚除了掃地，還能用於哪些意想不到的用途？",
-        "如果穿越時間技術存在，可能會有哪些全新的交通方式？",
         "如果穿越空間技術存在，可能會有哪些全新的交通方式？",
+        "如果穿越時間技術存在，可能會有哪些全新的交通方式？",
+        "掃帚除了掃地，還能用於哪些意想不到的用途？",
         # "🔧 自訂問題"
     ]
     
