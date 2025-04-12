@@ -966,7 +966,19 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                         )
 
                         # 是否要互相給對方Agent的回答
-                        ai_feedback_enabled = st.checkbox("開啟 AI 互相回饋", value=st.session_state[f"{user_session_id}_ai_feedback_enabled"], key=f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", disabled=len(selected_agents) < 2)
+                        # ai_feedback_enabled = st.checkbox("開啟 AI 互相回饋", value=st.session_state[f"{user_session_id}_ai_feedback_enabled"], key=f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", disabled=len(selected_agents) < 2)
+                        if f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input" not in st.session_state:
+                            st.session_state[f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input"] = True
+                        
+                        st.checkbox(
+                            "開啟 AI 互相回饋",
+                            key=f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input",
+                            value = True,
+                            disabled=len(selected_agents) < 2
+                        )
+
+                        ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", True)
+                        
                         if len(selected_agents) < 2:
                             st.info("⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能")
                             ai_feedback_enabled = False
@@ -974,7 +986,6 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                         st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
 
                     if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_free_input"):
-                        st.write(selected_agents)
                         st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]+1] = selected_agents
                         st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "自由輸入"
                         if user_inputs != "":
@@ -982,13 +993,6 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                             st.session_state[f"{user_session_id}_selected_technique"][round_num] = ""
 
                             user_inputs = ""
-
-
-                            # 👉 這裡加：
-                            st.write("🟢 按下送出，準備執行 single_round_discussion")
-                            st.write("🧠 round num:", round_num)
-                            st.write("🧠 user input:", st.session_state[f"{user_session_id}_user_inputs"].get(round_num, "N/A"))
-
 
                             completed = asyncio.run(single_round_discussion(
                                 st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
@@ -1109,14 +1113,26 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
 
 
                         # 是否要互相給對方Agent的回答
-                        ai_feedback_enabled = st.checkbox("開啟 AI 互相回饋", value=st.session_state[f"{user_session_id}_ai_feedback_enabled"], disabled=len(selected_agents) < 2, key=f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input")
+                        # ai_feedback_enabled = st.checkbox("開啟 AI 互相回饋", value=st.session_state[f"{user_session_id}_ai_feedback_enabled"], disabled=len(selected_agents) < 2, key=f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input")
+                        
+                        if f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input" not in st.session_state:
+                            st.session_state[f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input"] = True
+                        
+                        st.checkbox(
+                            "開啟 AI 互相回饋",
+                            key=f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input",
+                            value = True,
+                            disabled=len(selected_agents) < 2
+                        )
+
+                        ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input", False)
+                        
                         if len(selected_agents) < 2:
                             st.info("⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能")
                             ai_feedback_enabled = False
                         st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
 
                     if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_scamper_input"):
-                        st.write(selected_agents)   
                         st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]+1] = selected_agents
                         st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "選擇創意思考技術"
                         if selected_scamper and user_inputs is not None:
