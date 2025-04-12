@@ -60,18 +60,18 @@ with st.sidebar:
         if f"{user_session_id}_use_persona" not in st.session_state:
             st.session_state[f"{user_session_id}_use_persona"] = True
 
-        st.session_state[f"{user_session_id}_use_persona"] = st.checkbox(
+        st.checkbox(
             "啟用角色設定（影響語氣與觀點）",
-            value=st.session_state[f"{user_session_id}_use_persona"],
+            key=f"{user_session_id}_use_persona",
             disabled=is_locked
         )
 
         if f"{user_session_id}_enable_scamper_input" not in st.session_state:
             st.session_state[f"{user_session_id}_enable_scamper_input"] = True
 
-        st.session_state[f"{user_session_id}_enable_scamper_input"] = st.checkbox(
+        st.checkbox(
             "啟用SCAMPER創意思考技術",
-            value=st.session_state[f"{user_session_id}_enable_scamper_input"],
+            key=f"{user_session_id}_enable_scamper_input",
             disabled=is_locked
         )
 
