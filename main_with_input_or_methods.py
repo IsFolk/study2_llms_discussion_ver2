@@ -41,6 +41,157 @@ api_key = st.secrets["api_keys"]["OPENAI_API_KEY"]
 
 is_locked = st.session_state.get(f"{user_session_id}_discussion_started", False)
 
+
+if f"{user_session_id}_use_persona" not in st.session_state:
+    st.session_state[f"{user_session_id}_use_persona"] = True  # 預設開啟
+
+if f"{user_session_id}_enable_scamper_input" not in st.session_state:
+    st.session_state[f"{user_session_id}_enable_scamper_input"] = True  # 預設開啟
+
+if f"{user_session_id}_onboarding_done" not in st.session_state:
+    st.session_state[f"{user_session_id}_onboarding_done"] = False
+
+
+
+if not st.session_state[f"{user_session_id}_onboarding_done"]:
+    st.title("功能設定")
+
+    st.write("在開始之前，請先讓實驗人員選擇要啟用哪些功能：")
+
+    st.checkbox("啟用角色設定（影響語氣與觀點）", key=f"{user_session_id}_use_persona")
+    st.checkbox("啟用 SCAMPER 創意思考技術", key=f"{user_session_id}_enable_scamper_input")
+
+    if st.button("設定完成"):
+        st.session_state[f"{user_session_id}_onboarding_done"] = True
+        st.rerun()  # 讓畫面切到主流程
+    st.stop()  # 中止主程式執行，直到完成設定
+
+st.markdown(
+    """
+<style>
+div[data-testid="stDialog"] div[role="dialog"]:has(.big-dialog) {
+    width: 80vw;
+    height: 100vh;
+}
+</style>
+""",
+    unsafe_allow_html=True,
+)
+
+import base64
+
+def get_image_base64(image_path):
+    with open(image_path, "rb") as img_file:
+        encoded = base64.b64encode(img_file.read()).decode()
+    return f"data:image/png;base64,{encoded}"
+
+
+@st.dialog("系統說明", width="large")
+def show_onboarding_tabs():
+    st.html("<span class='big-dialog'></span>")
+    # # 預設 checkbox
+    # st.checkbox("啟用角色設定（影響語氣與觀點）", key=f"{user_session_id}_use_persona")
+    # st.checkbox("啟用 SCAMPER 創意思考技術", key=f"{user_session_id}_enable_scamper_input")
+    st.warning("**請先閱讀完所有說明。**\n\n閱讀完後使用 **「開始使用！」** 按鈕關閉說明，**不要使用右上角的「❌」**，否則說明會一直重覆出現喔！")
+
+    # 構建頁面
+    pages = build_onboarding_pages()
+    tab_titles = [p["title"] for p in pages]
+
+    tabs = st.tabs(tab_titles)
+    for tab, page in zip(tabs, pages):
+        with tab:
+            st.write(page["content"])
+            # if "image" in page:
+            #     st.image(page["image"], width=1500)
+            if "image" in page:
+                # 使用 HTML 方式顯示圖片
+                img_src = get_image_base64(f"./{page["image"]}")
+
+                st.markdown(
+                    f"""
+                    <div style='text-align: center;'>
+                        <img src="{img_src}" style="max-width:70%; max-height:auto;" />
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
+    if st.button("開始使用！"):
+        st.session_state[f"{user_session_id}_show_onboarding_modal"] = False
+        st.rerun()
+
+
+
+
+def build_onboarding_pages():
+    pages = []
+
+
+    if st.session_state.get(f"{user_session_id}_use_persona", True):
+        pages.append({
+            "title": "歡迎來到創意討論平台",
+            "content": "這是一個「AI 多角色討論框架」系統，幫助使用者快速發想創新點子，透過角色對話，激盪出更多點子！",
+            "image": "personas_main_ui.png"
+        })
+
+        pages.append({
+            "title": "角色互動",
+            "content": "你將與兩位虛擬角色（創業家 Businessman & 工程師 Engineer）進行討論，每輪會收到不同觀點的創意想法。",
+            "image": "personas_intro.png"
+        })
+        
+    else:
+        pages.append({
+            "title": "歡迎來到創意討論平台",
+            "content": "這是一個「AI 多角色討論框架」系統，幫助使用者快速發想創新點子，透過角色對話，激盪出更多點子！",
+            "image": "no_personas_main_ui.png"
+        })
+
+        pages.append({
+            "title": "角色互動",
+            "content": "你將與兩位虛擬角色（Agent A & Agent B）進行討論，每輪會收到不同觀點的創意想法。",
+            "image": "no_personas_intro.png"
+        })
+
+    pages.append({
+            "title": "AI 互相回饋",
+            "content": "你可以選擇是否讓兩位角色互相回饋彼此的觀點。這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！同時根據討論的情況，也可以指定只讓其中一位角色參與回應。",
+            "image": "persona_ai_feedback.png"
+    })
+
+    pages.append({
+        "title": "收藏點子 & 導出",
+        "content": "跟角色互動後出現某些喜歡某個點子嗎？可以勾選收藏之後留著之後討論！",
+        "image": "collect.gif"
+    })
+
+    if st.session_state.get(f"{user_session_id}_enable_scamper_input", True):
+        pages.append({
+        "title": "自由輸入",
+        "content": "你可以自由輸入想法，就像跟 ChatGPT 互動一樣，Agent 會依據你想法繼續跟你討論。",
+        "image": "free_text.png"
+        })
+
+
+        pages.append({
+            "title": "SCAMPER 創意思考工具",
+            "content": "你可以選擇創意思考技術（SCAMPER）來延伸你選定的 idea，例如：替代、結合、修改等。",
+            "image": "scamper.png"
+        })
+    else:
+        pages.append({
+            "title": "自由輸入",
+            "content": "你可以自由輸入想法，就像跟 ChatGPT 互動一樣，Agent 會依據你想法繼續跟你討論。",
+            "image": "free_text.png"
+        })
+
+    return pages
+
+if st.session_state.get(f"{user_session_id}_show_onboarding_modal", True):
+    show_onboarding_tabs()  # 原本那一段顯示多頁的流程邏輯
+    
+
 # 側邊欄：配置本地 API（折疊式）
 with st.sidebar:
     with st.expander("**模型與 API 設定**", expanded=False):  # 預設折疊
@@ -56,43 +207,61 @@ with st.sidebar:
         if is_locked:
             st.info("已開始討論，設定已鎖定。")
 
-    with st.expander("**實驗設定**", expanded=False):
-        if f"{user_session_id}_use_persona" not in st.session_state:
-            st.session_state[f"{user_session_id}_use_persona"] = True
+    # with st.expander("**實驗設定**", expanded=False):
+    #     if f"{user_session_id}_use_persona" not in st.session_state:
+    #         st.session_state[f"{user_session_id}_use_persona"] = True
 
-        st.checkbox(
-            "啟用角色設定（影響語氣與觀點）",
-            key=f"{user_session_id}_use_persona",
-            disabled=is_locked
-        )
+    #     st.checkbox(
+    #         "啟用角色設定（影響語氣與觀點）",
+    #         key=f"{user_session_id}_use_persona",
+    #         disabled=is_locked
+    #     )
 
-        if f"{user_session_id}_enable_scamper_input" not in st.session_state:
-            st.session_state[f"{user_session_id}_enable_scamper_input"] = True
+        # if f"{user_session_id}_enable_scamper_input" not in st.session_state:
+        #     st.session_state[f"{user_session_id}_enable_scamper_input"] = True
 
-        st.checkbox(
-            "啟用SCAMPER創意思考技術",
-            key=f"{user_session_id}_enable_scamper_input",
-            disabled=is_locked
-        )
+        # st.checkbox(
+        #     "啟用SCAMPER創意思考技術",
+        #     key=f"{user_session_id}_enable_scamper_input",
+        #     disabled=is_locked
+        # )
 
-        if is_locked:
-            st.info("已開始討論，設定已鎖定。")
+        # if is_locked:
+        #     st.info("已開始討論，設定已鎖定。")
 
         
+with st.sidebar:
+    with st.expander("**使用說明**", expanded=False):
+        st.markdown("""
+        這是一個結合 LLM 與多角色討論的創意發想工具，幫助你探索不同觀點、刺激靈感！
+
+        ### 你可以怎麼用？
+        - 每一輪提供你的想法或選擇延伸技術（SCAMPER）
+        - AI 角色根據不同角度給出回饋與延伸想法
+        - 收藏你喜歡的 Idea 並繼續討論，或是以你的想法為主導
+        
+        """)
+        if st.button("再看一次說明"):
+            st.session_state[f"{user_session_id}_show_onboarding_modal"] = True
+            st.rerun()
 
 
 
 # 根據角色設定是否啟用決定 title
 if st.session_state[f"{user_session_id}_use_persona"]:
     if st.session_state[f"{user_session_id}_enable_scamper_input"]:
-        title_setting = "LLM + Human Discussion Framework \n✔ Personas + ✔ Free Text Input + ✔ SCAMPER"
+        title_setting = "LLM + Human Discussion Framework \n"
+        title_setting += "✔ Personas + ✔ Free Text Input + ✔ SCAMPER"
     else:
-        title_setting = "LLM + Human Discussion Framework \n✔ Personas + ✔ Free Text Input + ✘ SCAMPER"
+        title_setting = "LLM + Human Discussion Framework \n"
+        title_setting += "✔ Personas + ✔ Free Text Input + ✘ SCAMPER"
 else:
     if st.session_state[f"{user_session_id}_enable_scamper_input"]:
-        title_setting = "LLM + Human Discussion Framework \n✘ Personas + ✔ Free Text Input + ✔ SCAMPER"
+        title_setting = "LLM + Human Discussion Framework \n"
+        title_setting += "✘ Personas + ✔ Free Text Input + ✔ SCAMPER"
     else:
-        title_setting = "LLM + Human Discussion Framework \n✘ Personas + ✔ Free Text Input + ✘ SCAMPER"
+        title_setting = "LLM + Human Discussion Framework \n"
+        title_setting += "✘ Personas + ✔ Free Text Input + ✘ SCAMPER"
 st.title(title_setting)
 
 # 停止執行如果 API 端點未設置
@@ -933,7 +1102,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
     if not st.session_state[f"{user_session_id}_round_{round_num}_input_completed"]:
 
         enable_scamper_input = st.session_state[f"{user_session_id}_enable_scamper_input"]
-
+    
         tab_labels = ["自由輸入", "選擇創意思考技術"] if enable_scamper_input else ["自由輸入"]
         tabs = st.tabs(tab_labels)
 
@@ -973,7 +1142,6 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                         st.checkbox(
                             "開啟 AI 互相回饋",
                             key=f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input",
-                            value = True,
                             disabled=len(selected_agents) < 2
                         )
 
@@ -1121,7 +1289,6 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                         st.checkbox(
                             "開啟 AI 互相回饋",
                             key=f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input",
-                            value = True,
                             disabled=len(selected_agents) < 2
                         )
 
