@@ -86,13 +86,14 @@ def get_image_base64(image_path):
     return f"data:image/png;base64,{encoded}"
 
 
+
 @st.dialog("系統說明", width="large")
 def show_onboarding_tabs():
     st.html("<span class='big-dialog'></span>")
     # # 預設 checkbox
     # st.checkbox("啟用角色設定（影響語氣與觀點）", key=f"{user_session_id}_use_persona")
     # st.checkbox("啟用 SCAMPER 創意思考技術", key=f"{user_session_id}_enable_scamper_input")
-    st.warning("**請先閱讀完所有說明。**\n\n閱讀完後使用 **「開始使用！」** 按鈕關閉說明，**不要使用右上角的「❌」**，否則說明會一直重覆出現喔！")
+    st.warning("**請先閱讀完所有說明。**\n\n每次要關閉視窗都使用 **「開始使用！」** 按鈕關閉，**不要使用右上角的「❌」**，否則說明會一直重覆出現喔！")
 
     # 構建頁面
     pages = build_onboarding_pages()
@@ -137,7 +138,11 @@ def build_onboarding_pages():
 
         pages.append({
             "title": "角色互動",
-            "content": "你將與兩位虛擬角色（創業家 Businessman & 工程師 Engineer）進行討論，每輪會收到不同觀點的創意想法。",
+            "content": (
+                        "你會看到兩個 AI 角色一同參與討論，具有不同專業背景：\n"
+                        "創業家（Businessman） 注重「這能不能賣」、「吸不吸引人」，\n"
+                        "工程師（Engineer） 注重「這能不能做」、「技術會不會太難」。\n"
+                    ),
             "image": "personas_intro.png"
         })
         
@@ -689,8 +694,12 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # 處理用戶輸入，只針對當前輪次
             if this_round_idea != "":
                 if this_round_method == "":
+                    next_round = st.session_state.get(f"{user_session_id}_round_num", 0) + 1
+                    agents = st.session_state[f"{user_session_id}_agent_restriction"].get(next_round, ["未選擇"])
+
                     this_round_user_idea = (f"{this_round_idea}\n\n")
                     this_round_user_idea_show_feedback = (f"- **使用者輸入：**{this_round_idea}\n\n"
+                    f"- **選擇回答的 Agent：**{', '.join([get_display_name(a) for a in agents])}\n\n"
                     f"- **是否開啟 Agent 互相回饋：** {'是' if st.session_state[f'{user_session_id}_ai_feedback_enabled'] else '否'}\n\n"
                     # f"- **是否啟用 Agent Personas：** {'是' if st.session_state[f'{user_session_id}_use_persona'] else '否'}\n\n"
                     )
@@ -703,7 +712,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     f"- **使用者選擇的創意：**「{this_round_idea}」\n\n"
                     f"- **使用者選擇的創意思考技術：**「{this_round_method}」\n\n"
                     f"- **方法應用說明：** {technique_explanations[this_round_method]}\n\n"
-                    f"- **選擇回答的 Agent：**{', '.join(agents)}\n\n"
+                    f"- **選擇回答的 Agent：**{', '.join([get_display_name(a) for a in agents])}\n\n"
                     f"- **是否開啟 Agent 互相回饋：** {'是' if st.session_state[f'{user_session_id}_ai_feedback_enabled'] else '否'}\n\n"
                     # f"- **是否啟用 Agent Personas：** {'是' if st.session_state[f'{user_session_id}_use_persona'] else '否'}\n\n"
                     )
@@ -850,7 +859,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 # 🔹 第三段：身份與風格提醒（結尾固定加）
                 if st.session_state[f"{user_session_id}_use_persona"]:
                     # 有 persona 的 Agent, 有 peer feedback
-                    if st.session_state[f"{user_session_id}_ai_feedback_enabled"]:
+                    if st.session_state[f'{user_session_id}_ai_feedback_enabled']:
                         identity_block = (
                             f"---\n\n"
                             f"- 你的角色設定：{agents[agent_name].system_message}\n\n"
@@ -869,7 +878,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                             f"---\n\n"
                         )
                     # 有 persona 的 Agent, 沒有 peer feedback
-                    else:
+                    elif st.session_state[f'{user_session_id}_ai_feedback_enabled'] == False:
                         identity_block = (
                             f"---\n\n"
                             f"- 你的角色設定：{agents[agent_name].system_message}\n\n"
@@ -884,9 +893,9 @@ async def single_round_discussion(round_num, agents, user_proxy):
                             f"這樣不僅能讓消費者更有情感連結，也能利用節慶集中曝光，強化市場話題性。\n\n"
                             f"---\n\n"
                         )
-                else:
+                elif st.session_state[f"{user_session_id}_use_persona"] == False:
                     # 沒有 persona 的 Agent, 有 peer feedback
-                    if st.session_state[f"{user_session_id}_ai_feedback_enabled"]:
+                    if st.session_state[f'{user_session_id}_ai_feedback_enabled']:
                         identity_block = (
                             f"請根據以下格式，依序完成角色回應，並務必遵守格式規定：\n\n"
                             f"{section1}"
@@ -902,7 +911,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                             f"模組化雖具彈性，但若能配合實體教學或展示活動，能幫助用戶更快上手，也更利於推廣。"
                             f"---\n\n"
                         )
-                    else:
+                    elif st.session_state[f'{user_session_id}_ai_feedback_enabled'] == False:
                         # 沒有 persona 的 Agent, 沒有 peer feedback
                         identity_block = (
                             f"請根據以下格式，完成角色回應，並務必遵守格式規定：\n\n"
@@ -928,6 +937,9 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 discussion_message_temp += "\n\n" + identity_block
 
                 # with st.chat_message("assistant"):
+                #     st.write("主設定值:", st.session_state.get(f"{user_session_id}_ai_feedback_enabled"))
+                #     st.write("FreeInput:", st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input"))
+                #     st.write("SCAMPER:", st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input"))
                 #     st.markdown(discussion_message_temp)
 
 
@@ -1044,8 +1056,9 @@ if not st.session_state.get(f"{user_session_id}_discussion_started", False):
         # "風箏除了娛樂，還能用什麼其他創意用途？",
         # "枕頭除了睡覺，還能如何幫助放鬆或解決日常問題？",
         "如果穿越空間技術存在，可能會有哪些全新的交通方式？",
-        "如果穿越時間技術存在，可能會有哪些全新的交通方式？",
-        "掃帚除了掃地，還能用於哪些意想不到的用途？",
+        # "如果穿越時間技術存在，可能會有哪些全新的交通方式？",
+        "磚頭除了蓋房子，還能有哪些意想不到的用途？",
+        "掃帚除了掃地，還能有哪些意想不到的用途？",
         # "🔧 自訂問題"
     ]
     
@@ -1145,17 +1158,23 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                             disabled=len(selected_agents) < 2
                         )
 
-                        ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", True)
+                        # ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", False)
                         
                         if len(selected_agents) < 2:
                             st.info("⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能")
-                            ai_feedback_enabled = False
-
-                        st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
+                        #     ai_feedback_enabled = False
+                        # st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
 
                     if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_free_input"):
                         st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]+1] = selected_agents
                         st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "自由輸入"
+
+                        ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", True)
+                        if len(selected_agents) < 2:
+                            ai_feedback_enabled = False
+                        st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
+
+                        
                         if user_inputs != "":
                             st.session_state[f"{user_session_id}_user_inputs"][round_num] = user_inputs
                             st.session_state[f"{user_session_id}_selected_technique"][round_num] = ""
@@ -1292,14 +1311,21 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                             disabled=len(selected_agents) < 2
                         )
 
-                        ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input", False)
+                        # ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input", False)
                         
                         if len(selected_agents) < 2:
                             st.info("⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能")
+                        #     ai_feedback_enabled = False
+                        # st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
+
+                    if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_scamper_input"):
+                        ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input", False)
+                        if len(selected_agents) < 2:
                             ai_feedback_enabled = False
                         st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
 
-                    if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_scamper_input"):
+                        
+                        
                         st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]+1] = selected_agents
                         st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "選擇創意思考技術"
                         if selected_scamper and user_inputs is not None:
