@@ -53,25 +53,37 @@ if f"{user_session_id}_onboarding_done" not in st.session_state:
 
 
 
-if not st.session_state[f"{user_session_id}_onboarding_done"]:
+if not st.session_state.get(f"{user_session_id}_onboarding_done", False):
     st.title("功能設定")
 
-    st.write("在開始之前，請先讓實驗人員選擇要啟用哪些功能：")
+    st.write("請先讓實驗人員選擇要啟用哪些功能：")
 
-    st.checkbox("啟用角色設定（影響語氣與觀點）", key=f"{user_session_id}_use_persona")
-    st.checkbox("啟用 SCAMPER 創意思考技術", key=f"{user_session_id}_enable_scamper_input")
+    # ❗用中繼變數來接收 checkbox 狀態
+    use_persona_temp = st.checkbox(
+        "啟用角色設定（影響語氣與觀點）",
+        value=st.session_state.get(f"{user_session_id}_use_persona", True)
+    )
+    enable_scamper_temp = st.checkbox(
+        "啟用 SCAMPER 創意思考技術",
+        value=st.session_state.get(f"{user_session_id}_enable_scamper_input", True)
+    )
 
     if st.button("設定完成"):
+        # ❗只在這邊真正寫入 session_state
+        st.session_state[f"{user_session_id}_use_persona"] = use_persona_temp
+        st.session_state[f"{user_session_id}_enable_scamper_input"] = enable_scamper_temp
         st.session_state[f"{user_session_id}_onboarding_done"] = True
-        st.rerun()  # 讓畫面切到主流程
-    st.stop()  # 中止主程式執行，直到完成設定
+        st.rerun()
+
+    st.stop()
+
 
 st.markdown(
     """
 <style>
 div[data-testid="stDialog"] div[role="dialog"]:has(.big-dialog) {
     width: 80vw;
-    max-height: 100vh;
+    max-height: 95vh;
     overflow-y: auto;
 }
 </style>
@@ -91,9 +103,6 @@ def get_image_base64(image_path):
 @st.dialog("系統說明", width="large")
 def show_onboarding_tabs():
     st.html("<span class='big-dialog'></span>")
-    # # 預設 checkbox
-    # st.checkbox("啟用角色設定（影響語氣與觀點）", key=f"{user_session_id}_use_persona")
-    # st.checkbox("啟用 SCAMPER 創意思考技術", key=f"{user_session_id}_enable_scamper_input")
     st.warning("**請先閱讀完所有說明。**\n\n每次要關閉視窗都使用 **「開始使用！」** 按鈕關閉，**不要使用右上角的「❌」**，否則說明會一直重覆出現喔！")
 
     # 構建頁面
@@ -119,7 +128,7 @@ def show_onboarding_tabs():
                     unsafe_allow_html=True
                 )
 
-    if st.button("開始使用！"):
+    if st.button("開始使用！", type="primary"):
         st.session_state[f"{user_session_id}_show_onboarding_modal"] = False
         st.rerun()
 
@@ -212,28 +221,6 @@ with st.sidebar:
 
         if is_locked:
             st.info("已開始討論，設定已鎖定。")
-
-    # with st.expander("**實驗設定**", expanded=False):
-    #     if f"{user_session_id}_use_persona" not in st.session_state:
-    #         st.session_state[f"{user_session_id}_use_persona"] = True
-
-    #     st.checkbox(
-    #         "啟用角色設定（影響語氣與觀點）",
-    #         key=f"{user_session_id}_use_persona",
-    #         disabled=is_locked
-    #     )
-
-        # if f"{user_session_id}_enable_scamper_input" not in st.session_state:
-        #     st.session_state[f"{user_session_id}_enable_scamper_input"] = True
-
-        # st.checkbox(
-        #     "啟用SCAMPER創意思考技術",
-        #     key=f"{user_session_id}_enable_scamper_input",
-        #     disabled=is_locked
-        # )
-
-        # if is_locked:
-        #     st.info("已開始討論，設定已鎖定。")
 
         
 with st.sidebar:
