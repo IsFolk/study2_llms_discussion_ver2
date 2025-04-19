@@ -1380,11 +1380,14 @@ with st.sidebar:
 
             # 將收藏的 Idea 資料轉成 DataFrame
             persistent_ideas = st.session_state.get(f"{user_session_id}_selected_persistent_ideas", {})
+            discussion_topic = st.session_state.get(f"{user_session_id}_user_question", "（無題目）")
+
 
             if persistent_ideas:
                 df = pd.DataFrame([
                     {
-                        "Idea": strip_markdown(idea),  # 先清除 Markdown 標記
+                        "討論題目": discussion_topic,
+                        "Idea": strip_markdown(idea),
                         "收藏輪數": round_collected
                     }
                     for idea, round_collected in persistent_ideas.items()
