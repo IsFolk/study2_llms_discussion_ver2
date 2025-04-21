@@ -171,7 +171,9 @@ def build_onboarding_pages():
 
     pages.append({
             "title": "AI 互相回饋",
-            "content": "你可以選擇是否讓兩位角色互相回饋彼此的觀點。這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！同時根據討論的情況，也可以指定只讓其中一位角色參與回應。",
+            "content": (f"你可以選擇是否讓兩位角色互相回饋彼此的觀點。"
+                        f"這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！"
+                        f"同時根據討論的情況，也可以指定只讓其中一位角色參與回應。"),
             "image": "persona_ai_feedback.png"
     })
 
@@ -1114,7 +1116,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                     with st.container(border=True):
                         user_inputs = st.text_area(f"**請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：**")
                     
-                    with st.expander(f"**AI 回應設定**", expanded=False):  # 預設不展開
+                    with st.expander(f"**AI 回應設定**", expanded=True):
                         # 限制可選的 Agent 為 "Businessman" 和 "Engineer"
                         available_agents = [get_display_name(tag) for tag in AGENT_CONFIG]
 
@@ -1266,7 +1268,7 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                             st.warning(f"⚠️ 已超過最大選擇數量（{max_allowed} 個），請減少選擇的 Idea。")
                             st.stop()  # 或者 st.session_state 鎖住送出按鈕
                             
-                    with st.expander(f"**AI 回應設定**", expanded=False):  # 預設不展開
+                    with st.expander(f"**AI 回應設定**", expanded=True):
                         # 限制可選的 Agent 為 "Businessman" 和 "Engineer"
                         available_agents = [get_display_name(tag) for tag in AGENT_CONFIG]
 
