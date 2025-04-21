@@ -791,12 +791,12 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     f"確保以zh-TW語言回應。\n\n"
 
                 )
-                discussion_message_for_showing = discussion_message_for_showing + (
-                    f"\n\n- 請根據你的專業視角回答！\n\n"
-                    # f"\n\n🎭 {agents[agent_name].system_message}\n\n"
-                    f"\n\n- 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
-                    f"\n\n- 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
-                )
+                # discussion_message_for_showing = discussion_message_for_showing + (
+                #     f"\n\n- 請根據你的專業視角回答！\n\n"
+                #     # f"\n\n🎭 {agents[agent_name].system_message}\n\n"
+                #     f"\n\n- 請僅從你的專業領域知識出發，不要提供一般性的回答！\n\n"
+                #     f"\n\n- 請勿脫離你的專業範圍，不要提供非專業的建議或回應。\n\n"
+                # )
 
             else:                
                 # 額外加上 peer feedback 區塊
