@@ -226,7 +226,7 @@ with st.sidebar:
 
         
 with st.sidebar:
-    with st.expander("**使用說明**", expanded=False):
+    with st.expander("**使用說明**", expanded=True):
         st.markdown("""
         這是一個結合 LLM 與多角色討論的創意發想工具，幫助你探索不同觀點、刺激靈感！
 
