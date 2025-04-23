@@ -155,6 +155,14 @@ def build_onboarding_pages():
                     ),
             "image": "personas_intro.png"
         })
+
+        pages.append({
+            "title": "AI 互相回饋",
+            "content": (f"你可以選擇是否讓兩位角色互相回饋彼此的觀點。"
+                        f"這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！"
+                        f"同時根據討論的情況，也可以指定只讓其中一位角色參與回應。"),
+            "image": "persona_ai_feedback.png"
+        })
         
     else:
         pages.append({
@@ -169,13 +177,15 @@ def build_onboarding_pages():
             "image": "no_personas_intro.png"
         })
 
-    pages.append({
+        pages.append({
             "title": "AI 互相回饋",
             "content": (f"你可以選擇是否讓兩位角色互相回饋彼此的觀點。"
                         f"這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！"
                         f"同時根據討論的情況，也可以指定只讓其中一位角色參與回應。"),
-            "image": "persona_ai_feedback.png"
-    })
+            "image": "no_persona_ai_feedback.png"
+        })
+
+    
 
     pages.append({
         "title": "收藏點子 & 導出",
