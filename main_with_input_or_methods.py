@@ -18,19 +18,166 @@ import markdown2
 import io
 import datetime
 import streamlit.components.v1 as components
-
+import streamlit as st
+from supabase import create_client, Client
+import json
+import requests
 
 
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
+
+# 從 secrets 讀取
+SUPABASE_URL = st.secrets["supabase"]["url"]
+SUPABASE_SERVICE_KEY = st.secrets["supabase"]["service_key"]
+
+# 建立連線
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+def store_messages(silent: bool = False):
+    # 取得本輪訊息
+    messages_this_round = st.session_state.get(f"{user_session_id}_messages", [])
+    selected_ideas = list(st.session_state.get(f"{user_session_id}_selected_persistent_ideas", {}).keys())
+
+    # 準備要寫入的資料，加入 selected_ideas 欄位
+    record = {
+        "session_id": user_session_id,
+        "round": st.session_state.get(f"{user_session_id}_round_num", 0),
+        "user_question": st.session_state.get(f"{user_session_id}_user_question", ""),
+        "messages": messages_this_round,
+        "selected_ideas": selected_ideas  # <== 新增這一行
+    }
+
+    # API 基本資訊
+    endpoint = f"{SUPABASE_URL}/rest/v1/conversations"
+    headers = {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "Content-Type": "application/json",
+        "Prefer": "return=representation"
+    }
+
+    # 檢查是否已有記錄
+    check_response = requests.get(f"{endpoint}?session_id=eq.{user_session_id}", headers=headers)
+
+    if check_response.status_code == 200 and check_response.json():
+        # 已存在，更新
+        existing_id = check_response.json()[0]["id"]
+        update_endpoint = f"{endpoint}?id=eq.{existing_id}"
+        update_response = requests.patch(update_endpoint, headers=headers, json=record)
+
+        if not silent:
+            if update_response.status_code in [200, 204]:
+                st.toast("已更新 Supabase 記錄（包含收藏 Ideas）", icon="✅")
+            else:
+                st.error(f"❌ 更新失敗: {update_response.status_code} - {update_response.text}")
+
+        return update_response.status_code in [200, 204]
+
+    else:
+        # 不存在，新增
+        response = requests.post(endpoint, headers=headers, json=record)
+
+        if not silent:
+            if response.status_code in [200, 201]:
+                st.toast("已新增到 Supabase（包含收藏 Ideas）", icon="✅")
+            else:
+                st.error(f"❌ 新增失敗: {response.status_code} - {response.text}")
+
+        return response.status_code in [200, 201]
 
 
 # 設定 Streamlit 頁面
 st.set_page_config(page_title="LLM + Human Discussion Framework", page_icon="🧑", layout="wide")
 
-# 讓每個使用者有獨立的 session ID
-if "user_session_id" not in st.session_state:
-    st.session_state["user_session_id"] = str(uuid.uuid4())  # 產生隨機 ID
-    
+
+def st_redirect(url: str) -> None:
+    nav_script = f"""
+        <meta http-equiv="refresh" content="0; url='{url}'">
+    """
+    st.markdown(nav_script, unsafe_allow_html=True)
+
+provided_uuid = st.query_params.get("uid", None)
+
+if provided_uuid is None:
+    new_uuid = str(uuid.uuid4())
+    st.write("🔄 產生 Session UUID 中，請稍後...")
+
+    st_redirect(f"?uid={new_uuid}")
+
+    # 這邊不用 st.stop 讓頁面能完整渲染
+    st.write(f"⚠️ 如果沒有自動跳轉，請 [點此手動跳轉](?uid={new_uuid})")
+
+    st.stop()
+
+else:
+    if "user_session_id" not in st.session_state:
+        st.session_state["user_session_id"] = provided_uuid
+
+    user_session_id = st.session_state["user_session_id"]
+
+with st.sidebar:
+    with st.expander("**Session UUID**", expanded=False):
+        if user_session_id:
+            st.success(f"✅ 目前 Session UUID: {user_session_id}")
+
+if f"{user_session_id}_messages" not in st.session_state:
+    # 🟢 建立 RESTful API 查詢 URL
+    history_api_url = f"{SUPABASE_URL}/rest/v1/conversations?session_id=eq.{user_session_id}&order=round.asc"
+
+    # 🟢 設定標頭
+    headers = {
+        "apikey": SUPABASE_SERVICE_KEY,
+        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+        "Accept": "application/json"
+    }
+
+    # 🟢 發送 GET 請求
+    response = requests.get(history_api_url, headers=headers)
+
+    # 🟢 檢查回應
+    if response.status_code == 200:
+        history_data = response.json()
+
+        if history_data:
+            # 取得最新的紀錄
+            latest_record = history_data[-1]
+            latest_messages = latest_record.get("messages", [])
+            latest_round = latest_record.get("round", 0)
+            latest_selected_ideas = latest_record.get("selected_ideas", [])  # 讀取收藏的 Ideas
+
+
+            # 還原狀態
+            st.session_state[f"{user_session_id}_messages"] = latest_messages
+            st.session_state[f"{user_session_id}_round_num"] = latest_round
+            st.session_state[f"{user_session_id}_discussion_started"] = True
+
+            # 還原收藏的 Ideas
+            st.session_state[f"{user_session_id}_selected_persistent_ideas"] = {idea: latest_round for idea in latest_selected_ideas}
+
+
+            if f"{user_session_id}_idea_options" not in st.session_state:
+                st.session_state[f"{user_session_id}_idea_options"] = {}
+
+            # 直接遍歷 latest_messages
+            st.session_state[f"{user_session_id}_idea_options"][f"round_{latest_round}"] = [
+                idea.get("content", "") for idea in latest_messages if idea.get("role") == "Assistant"
+            ]
+
+            st.toast("成功還原之前的討論內容", icon="📝")
+
+        else:
+            st.info("ℹ️ 沒有找到任何歷史紀錄")
+    else:
+        st.error(f"❌ 請求失敗: {response.status_code} {response.text}")
+
+# # 顯示從 URL 讀到的參數
+# st.write(f"🔍 從 URL 讀取到的 uid 參數： `{provided_uuid}`")
+
+# # 顯示目前有效的 user_session_id
+# st.write(f"🆔 目前有效的 user_session_id： `{user_session_id}`")
+
+st.markdown("---")
+
 st.cache_data.clear()  # **確保每個使用者的快取是獨立的**
 st.cache_resource.clear()
 
@@ -601,6 +748,12 @@ def mark_agent_completed(round_num, agent_name):
 async def single_round_discussion(round_num, agents, user_proxy):
     initialize_agent_states(round_num, agents)
 
+    # 確保 agent_restriction 本輪有設定
+    current_round = st.session_state[f"{user_session_id}_round_num"]
+    if current_round not in st.session_state[f"{user_session_id}_agent_restriction"]:
+        st.session_state[f"{user_session_id}_agent_restriction"][current_round] = list(AGENT_CONFIG.keys())
+
+
     if round_num == 0:
         discussion_message = (
             f"**第 {round_num} 輪討論**\n\n"
@@ -619,7 +772,9 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 continue
             last_round_response[agent_name] = response
 
-        if st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]] == "選擇創意思考技術":
+        current_method = st.session_state[f"{user_session_id}_current_input_method"].get(st.session_state[f"{user_session_id}_round_num"], "自由輸入")
+        
+        if current_method == "選擇創意思考技術":
             # **創意思考技術對應的解釋**
             technique_explanations = {                
                 # SCAMPER 方法
@@ -659,7 +814,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
             #     f"- 請從你的專業視角出發，針對這個創意延伸一個有價值的新想法。\n"
             # )
         
-        elif st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]] == "自由輸入":
+        elif current_method == "自由輸入":
             discussion_message = (
                 f"這輪我們持續延伸「{st.session_state[f'{user_session_id}_user_question']}」這個主題的創意。\n\n"
                 f"第 {round_num} 輪討論 \n\n"
@@ -783,6 +938,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     st.session_state[f"{user_session_id}_idea_list"].append(idea)
 
             # st.write(f"登記 {agent_name} 完成")
+
+
         elif agent_name in st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]]:
             # 第0輪之後才限制字數
             if round_num == 0:
@@ -844,7 +1001,7 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 discussion_message_temp = discussion_message  # 先從第一段開始組
 
 
-                if st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]] == "自由輸入":
+                if current_method == "自由輸入":
                     section1 = (
                         f"**1. 我覺得**：請以一句粗體句子到句點開頭，回應使用者的輸入內容（用第一人稱），"
                         f"清楚表達你這輪的創新主張，表達你這輪的創新主張與延伸（用第一人稱），並且換兩行，接著補充說明，總長度約 2～3 句。\n\n"
@@ -1345,6 +1502,13 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
         # 如果該輪完成，進入下一輪
         # st.write(f"已完成第 {st.session_state.round_num} 輪，進入第 {st.session_state.round_num + 1} 輪")
         st.session_state[f"{user_session_id}_round_num"] += 1
+
+        # ✅ 事先為下一輪補上預設值
+        next_round = st.session_state[f"{user_session_id}_round_num"]
+        if next_round not in st.session_state[f"{user_session_id}_agent_restriction"]:
+            st.session_state[f"{user_session_id}_agent_restriction"][next_round] = list(AGENT_CONFIG.keys())
+
+        store_messages(silent=True)  # 儲存對話紀錄到 Supabase
         # time.sleep(1)
         st.rerun()
 
