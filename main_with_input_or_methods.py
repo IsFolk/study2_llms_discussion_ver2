@@ -96,6 +96,12 @@ def st_redirect(url: str) -> None:
     """
     st.markdown(nav_script, unsafe_allow_html=True)
 
+    st.markdown(f"""
+    <script>
+        window.location.replace("{url}");
+    </script>
+    """, unsafe_allow_html=True)
+
 provided_uuid = st.query_params.get("uid", None)
 
 if provided_uuid is None:
