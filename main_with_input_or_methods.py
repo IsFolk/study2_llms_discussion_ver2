@@ -92,38 +92,26 @@ def store_messages(silent: bool = False):
 st.set_page_config(page_title="LLM + Human Discussion Framework", page_icon="🧑", layout="wide")
 
 
-def st_redirect(url: str) -> None:
-    nav_script = f"""
-        <meta http-equiv="refresh" content="0; url='{url}'">
-    """
-    st.markdown(nav_script, unsafe_allow_html=True)
+provided_uuid = st.query_params.get("uid")
 
-    st.markdown(f"""
-    <script>
-        window.location.replace("{url}");
-    </script>
-    """, unsafe_allow_html=True)
-
-provided_uuid = st.query_params.get("uid", None)
-
-print(f"🔍 從 URL 讀取到的 uid 參數： `{provided_uuid}`")  # Debug 用
-
-if provided_uuid is None:
+# 沒有 uid → 自動產生並寫入 URL
+if not provided_uuid:
     new_uuid = str(uuid.uuid4())
+
     st.write("🔄 產生 Session UUID 中，請稍後...")
 
-    st_redirect(f"?uid={new_uuid}")
+    # ✅ 直接改 URL（不是 redirect）
+    st.query_params["uid"] = new_uuid
 
-    # 這邊不用 st.stop 讓頁面能完整渲染
-    st.write(f"⚠️ 如果沒有自動跳轉，請 [點此手動跳轉](?uid={new_uuid})")
+    # ✅ 重新執行 app（關鍵）
+    st.rerun()
 
-    st.stop()
+# 有 uid → 正常使用
+if "user_session_id" not in st.session_state:
+    st.session_state["user_session_id"] = st.query_params["uid"]
 
-else:
-    if "user_session_id" not in st.session_state:
-        st.session_state["user_session_id"] = provided_uuid
+user_session_id = st.session_state["user_session_id"]
 
-    user_session_id = st.session_state["user_session_id"]
 
 with st.sidebar:
     with st.expander("**Session UUID**", expanded=False):
