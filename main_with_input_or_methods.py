@@ -106,6 +106,8 @@ def st_redirect(url: str) -> None:
 
 provided_uuid = st.query_params.get("uid", None)
 
+print(f"🔍 從 URL 讀取到的 uid 參數： `{provided_uuid}`")  # Debug 用
+
 if provided_uuid is None:
     new_uuid = str(uuid.uuid4())
     st.write("🔄 產生 Session UUID 中，請稍後...")
