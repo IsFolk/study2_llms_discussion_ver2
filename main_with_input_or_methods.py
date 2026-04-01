@@ -27,11 +27,12 @@ import requests
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
 
 # 從 secrets 讀取
-SUPABASE_URL = st.secrets["supabase"]["url"]
-SUPABASE_SERVICE_KEY = st.secrets["supabase"]["service_key"]
+SUPABASE_URL = st.secrets["supabase"]["url"].strip()
+SUPABASE_SERVICE_KEY = st.secrets["supabase"]["service_key"].strip()
+SUPABASE_SCHEMA = st.secrets["supabase"]["schema"].strip()
 
-# 建立連線
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 def store_messages(silent: bool = False):
     # 取得本輪訊息
@@ -53,7 +54,8 @@ def store_messages(silent: bool = False):
         "apikey": SUPABASE_SERVICE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
         "Content-Type": "application/json",
-        "Prefer": "return=representation"
+        "Prefer": "return=representation",
+        "Content-Profile": SUPABASE_SCHEMA
     }
 
     # 檢查是否已有記錄
@@ -127,14 +129,16 @@ with st.sidebar:
             st.success(f"✅ 目前 Session UUID: {user_session_id}")
 
 if f"{user_session_id}_messages" not in st.session_state:
-    # 🟢 建立 RESTful API 查詢 URL
+    # 🟢 建立 RESTful API 查詢 URL - 改為 api schema
     history_api_url = f"{SUPABASE_URL}/rest/v1/conversations?session_id=eq.{user_session_id}&order=round.asc"
 
-    # 🟢 設定標頭
+    print(f"🔍 查詢歷史紀錄的 API URL: {history_api_url}")  # Debug 用
+
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
         "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-        "Accept": "application/json"
+        "Accept": "application/json",
+        "Accept-Profile": SUPABASE_SCHEMA  # ✅ GET 要用 Accept-Profile
     }
 
     # 🟢 發送 GET 請求
