@@ -1,27 +1,22 @@
 import streamlit as st
 import asyncio
 import re
-from autogen import AssistantAgent, UserProxyAgent
+from autogen import UserProxyAgent
 from autogen import ConversableAgent
 import pandas as pd
 import plotly.express as px
-import logging
 import os
-from dotenv import load_dotenv
-import textwrap
 import time
 import uuid
 
 import os
-import shutil
 import markdown2
 import io
 import datetime
-import streamlit.components.v1 as components
 import streamlit as st
-from supabase import create_client, Client
-import json
+from supabase import create_client
 import requests
+import json
 
 
 os.environ["AUTOGEN_USE_DOCKER"] = "0"
@@ -112,7 +107,60 @@ if "user_session_id" not in st.session_state:
 
 user_session_id = st.session_state["user_session_id"]
 
+# =========================
+# 語言選擇前置頁
+# =========================
+if f"{user_session_id}_language_selected" not in st.session_state:
+    st.session_state[f"{user_session_id}_language_selected"] = False
 
+if f"{user_session_id}_language" not in st.session_state:
+    st.session_state[f"{user_session_id}_language"] = "zh-TW"
+
+
+if not st.session_state[f"{user_session_id}_language_selected"]:
+    st.title("Please select your language / 請選擇語言")
+
+    selected_lang = st.radio(
+        "Language / 語言",
+        options=["zh-TW", "en"],
+        format_func=lambda x: "繁體中文" if x == "zh-TW" else "English"
+    )
+
+    if st.button("Continue / 繼續"):
+        st.session_state[f"{user_session_id}_language"] = selected_lang
+        st.session_state[f"{user_session_id}_language_selected"] = True
+        st.rerun()
+
+    st.stop()
+
+
+# 載入語言包
+@st.cache_data
+def load_locale(lang):
+    with open(f"locale/{lang}.json", "r", encoding="utf-8") as f:
+        return json.load(f)
+
+# 國際化翻譯函式
+def t(key, **kwargs):
+    lang = st.session_state.get(f"{user_session_id}_language", "zh-TW")
+    locale = load_locale(lang)
+
+    keys = key.split(".")
+    val = locale
+    for k in keys:
+        if isinstance(val, dict):
+            val = val.get(k)
+        else:
+            return key
+
+    if val is None:
+        return key
+
+    if isinstance(val, str) and kwargs:
+        return val.format(**kwargs)
+
+    return val
+    
 with st.sidebar:
     with st.expander("**Session UUID**", expanded=False):
         if user_session_id:
@@ -122,7 +170,7 @@ if f"{user_session_id}_messages" not in st.session_state:
     # 🟢 建立 RESTful API 查詢 URL - 改為 api schema
     history_api_url = f"{SUPABASE_URL}/rest/v1/conversations?session_id=eq.{user_session_id}&order=round.asc"
 
-    print(f"🔍 查詢歷史紀錄的 API URL: {history_api_url}")  # Debug 用
+    # print(f"🔍 查詢歷史紀錄的 API URL: {history_api_url}")  # Debug 用
 
     headers = {
         "apikey": SUPABASE_SERVICE_KEY,
@@ -163,12 +211,12 @@ if f"{user_session_id}_messages" not in st.session_state:
                 idea.get("content", "") for idea in latest_messages if idea.get("role") == "Assistant"
             ]
 
-            st.toast("成功還原之前的討論內容", icon="📝")
+            st.toast(t("ui.backup_success"), icon="📝")
 
         else:
-            st.info("ℹ️ 沒有找到任何歷史紀錄")
+            st.info(t("ui.backup_not_found"), icon="ℹ️")
     else:
-        st.error(f"❌ 請求失敗: {response.status_code} {response.text}")
+        st.error(f"❌ {t('ui.request_failed')}: {response.status_code} {response.text}")
 
 # # 顯示從 URL 讀到的參數
 # st.write(f"🔍 從 URL 讀取到的 uid 參數： `{provided_uuid}`")
@@ -201,21 +249,21 @@ if f"{user_session_id}_onboarding_done" not in st.session_state:
 
 
 if not st.session_state.get(f"{user_session_id}_onboarding_done", False):
-    st.title("功能設定")
+    st.title(t("ui.feature_settings"))
+    st.write(t("ui.select_features"))
 
-    st.write("請先讓實驗人員選擇要啟用哪些功能：")
 
     # ❗用中繼變數來接收 checkbox 狀態
     use_persona_temp = st.checkbox(
-        "啟用角色設定（影響語氣與觀點）",
+        t("ui.enable_persona"),
         value=st.session_state.get(f"{user_session_id}_use_persona", True)
     )
     enable_scamper_temp = st.checkbox(
-        "啟用 SCAMPER 創意思考技術",
+        t("ui.enable_scamper"),
         value=st.session_state.get(f"{user_session_id}_enable_scamper_input", True)
     )
 
-    if st.button("設定完成"):
+    if st.button(t("ui.settings_done")):
         # ❗只在這邊真正寫入 session_state
         st.session_state[f"{user_session_id}_use_persona"] = use_persona_temp
         st.session_state[f"{user_session_id}_enable_scamper_input"] = enable_scamper_temp
@@ -247,10 +295,10 @@ def get_image_base64(image_path):
 
 
 
-@st.dialog("系統說明", width="large")
+@st.dialog(t("ui.system_intro"), width="large")
 def show_onboarding_tabs():
     st.html("<span class='big-dialog'></span>")
-    st.warning("**請先閱讀完所有說明。**\n\n每次要關閉視窗都使用 **「開始使用！」** 按鈕關閉，**不要使用右上角的「❌」**，否則說明會一直重覆出現喔！")
+    st.warning(t("ui.system_hint"), icon="⚠️")
 
     # 構建頁面
     pages = build_onboarding_pages()
@@ -260,8 +308,6 @@ def show_onboarding_tabs():
     for tab, page in zip(tabs, pages):
         with tab:
             st.write(page["content"])
-            # if "image" in page:
-            #     st.image(page["image"], width=1500)
             if "image" in page:
                 # 使用 HTML 方式顯示圖片
                 img_src = get_image_base64(f"./{page["image"]}")
@@ -275,7 +321,7 @@ def show_onboarding_tabs():
                     unsafe_allow_html=True
                 )
 
-    if st.button("開始使用！", type="primary"):
+    if st.button(t("ui.start_using"), type="primary"):
         st.session_state[f"{user_session_id}_show_onboarding_modal"] = False
         st.rerun()
 
@@ -285,78 +331,69 @@ def show_onboarding_tabs():
 def build_onboarding_pages():
     pages = []
 
-
     if st.session_state.get(f"{user_session_id}_use_persona", True):
         pages.append({
-            "title": "歡迎來到創意討論平台",
-            "content": "這是一個「AI 多角色討論框架」系統，幫助使用者快速發想創新點子，透過角色對話，激盪出更多點子！",
+            "title": t("ui.system_welcome_title"),
+            "content": t("ui.system_welcome_content"),
             "image": "personas_main_ui.png"
         })
 
         pages.append({
-            "title": "角色互動",
-            "content": (
-                        "你會看到兩個 AI 角色一同參與討論，具有不同專業背景：\n"
-                        "創業家（Businessman） 注重「這能不能賣」、「吸不吸引人」，\n"
-                        "工程師（Engineer） 注重「這能不能做」、「技術會不會太難」。\n"
-                    ),
+            "title": t("ui.system_role_title"),
+            "content": t("ui.system_role_content"),
             "image": "personas_intro.png"
         })
 
         pages.append({
-            "title": "AI 互相回饋",
-            "content": (f"你可以選擇是否讓兩位角色互相回饋彼此的觀點。"
-                        f"這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！"
-                        f"同時根據討論的情況，也可以指定只讓其中一位角色參與回應。"),
+            "title": t("ui.system_ai_feedback_title"),
+            "content": t("ui.system_ai_feedback_content"),
             "image": "persona_ai_feedback.png"
         })
         
     else:
         pages.append({
-            "title": "歡迎來到創意討論平台",
-            "content": "這是一個「AI 多角色討論框架」系統，幫助使用者快速發想創新點子，透過角色對話，激盪出更多點子！",
+            "title": t("ui.system_welcome_title"),
+            "content": t("ui.system_welcome_content"),
             "image": "no_personas_main_ui.png"
         })
 
         pages.append({
-            "title": "角色互動",
-            "content": "你將與兩位虛擬角色（Agent A & Agent B）進行討論，每輪會收到不同觀點的創意想法。",
+            "title": t("ui.system_role_title"),
+            "content": t("ui.system_role_content"),
             "image": "no_personas_intro.png"
         })
 
         pages.append({
-            "title": "AI 互相回饋",
-            "content": (f"你可以選擇是否讓兩位角色互相回饋彼此的觀點。"
-                        f"這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！"
-                        f"同時根據討論的情況，也可以指定只讓其中一位角色參與回應。"),
+            "title": t("ui.system_ai_feedback_title"),
+            "content": t("ui.system_ai_feedback_content"),
             "image": "no_persona_ai_feedback.png"
         })
 
     
 
     pages.append({
-        "title": "收藏點子 & 導出",
-        "content": "跟角色互動後出現某些喜歡某個點子嗎？可以勾選收藏之後留著之後討論！",
+        "title": t("ui.system_saved_ideas_title"),
+        "content": t("ui.system_saved_ideas_content"),
         "image": "collect.gif"
     })
 
     if st.session_state.get(f"{user_session_id}_enable_scamper_input", True):
         pages.append({
-        "title": "自由輸入",
-        "content": "你可以自由輸入想法，就像跟 ChatGPT 互動一樣，Agent 會依據你想法繼續跟你討論。",
-        "image": "free_text.png"
+            "title": t("ui.system_free_input_title"),
+            "content": t("ui.system_free_input_content"),
+            "image": "free_text.png"
         })
 
 
         pages.append({
-            "title": "SCAMPER 創意思考工具",
-            "content": "你可以選擇創意思考技術（SCAMPER）來延伸你選定的 idea，例如：替代、結合、修改等。",
+            "title": t("ui.system_scamper_input_title"),
+            "content": t("ui.system_scamper_input_content"),
             "image": "scamper.png"
         })
     else:
         pages.append({
-            "title": "自由輸入",
-            "content": "你可以自由輸入想法，就像跟 ChatGPT 互動一樣，Agent 會依據你想法繼續跟你討論。",
+            "title": t("ui.system_free_input_title"),
+            "content": t("ui.system_free_input_content"),
             "image": "free_text.png"
         })
 
@@ -368,32 +405,24 @@ if st.session_state.get(f"{user_session_id}_show_onboarding_modal", True):
 
 # 側邊欄：配置本地 API（折疊式）
 with st.sidebar:
-    with st.expander("**模型與 API 設定**", expanded=False):  # 預設折疊
-        st.header("模型與 API 設定")
-        selected_model = st.selectbox("選擇模型", ["gpt-4o-mini", "gpt-4o"], index=1, disabled=is_locked)
+    with st.expander(f"**{t('ui.model_settings')}**", expanded=False):  # 預設折疊
+        st.header(t("ui.model_settings"))
+        selected_model = st.selectbox(t("ui.select_model"), ["gpt-4o-mini", "gpt-4o"], index=1, disabled=is_locked)
         base_url = None
         if "gpt" not in selected_model:
-            base_url = st.text_input("API 端點", "http://127.0.0.1:1234/v1")
-        rounds = st.slider("設定討論輪次", min_value=1, max_value=999, value=999, disabled=is_locked)
-        temperature = st.slider("設定溫度 (temperature)", min_value=0.0, max_value=2.0, value=1.0, step=0.1, disabled=is_locked)
-        
+            base_url = st.text_input(t("ui.api_endpoint"), "http://127.0.0.1:1234/v1")
+        rounds = st.slider(t("ui.rounds"), min_value=1, max_value=999, value=999, disabled=is_locked)
+        temperature = st.slider(t("ui.temperature"), min_value=0.0, max_value=2.0, value=1.0, step=0.1, disabled=is_locked)
+
 
         if is_locked:
-            st.info("已開始討論，設定已鎖定。")
+            st.info(t("ui.system_locked"))
 
         
 with st.sidebar:
-    with st.expander("**使用說明**", expanded=True):
-        st.markdown("""
-        這是一個結合 LLM 與多角色討論的創意發想工具，幫助你探索不同觀點、刺激靈感！
-
-        ### 你可以怎麼用？
-        - 每一輪提供你的想法
-        - AI 角色根據不同角度給出回饋與延伸想法
-        - 收藏你喜歡的 Idea 並繼續討論，或是以你的想法為主導
-        
-        """)
-        if st.button("再看一次說明"):
+    with st.expander(f"**{t('ui.usage_guide')}**", expanded=True):
+        st.markdown(t("ui.usage_guide_content"))
+        if st.button(t("ui.review_guide_again")):
             st.session_state[f"{user_session_id}_show_onboarding_modal"] = True
             st.rerun()
 
@@ -418,7 +447,7 @@ st.title(title_setting)
 
 # 停止執行如果 API 端點未設置
 if not base_url and "gpt" not in selected_model:
-    st.warning("請輸入 API 端點！", icon="⚠️")
+    st.warning(t("ui.enter_api_endpoint"), icon="⚠️")
     st.stop()
 
 # LLM 配置
@@ -447,50 +476,28 @@ if f"{user_session_id}_llm_config" not in st.session_state:
         ]
     }
 
-Businessman_prompt = (
-    "你是 Businessman。你是一位在矽谷創業的創辦人，具備出色的產品直覺與商業敏銳度，曾參與多次 seed round 募資。"
-    "你習慣使用的語言包括：market-fit、user pain point、growth loop、viral trigger、pivot、go-to-market strategy、early adopters、unit economics。"
-    "當你提出想法時，請以創投簡報（pitch deck）語氣表達，重點是能否引起使用者共鳴、快速測試商業模式、創造市場話題。"
 
-    "🎯 你的目標是："
-    "1️⃣ 找到具有 **使用者吸引力** 和 **潛在成長性** 的市場切入點\n"
-    "2️⃣ 提出點子要能支撐 **故事性**，讓投資人、媒體、使用者會興奮地想參與\n"
-    "3️⃣ 評估每個點子的 go-to-market 可行性與潛在 revenue stream"
+@st.cache_data
+def load_prompts(lang):
+    with open(f"prompts/{lang}.json", "r", encoding="utf-8") as f:
+        return json.load(f)
 
-    "🚫 請避免："
-    "談論技術實作細節、工程可行性或開發負擔；你只關心『這東西會不會紅』。"
+def get_prompt(key):
+    lang = st.session_state.get(f"{user_session_id}_language", "zh-TW")
+    prompts = load_prompts(lang)
 
-    "💬 常用語氣範例："
-    "- 『這是一個有潛力切入 Z 世代市場的 viral loop』\n"
-    "- 『這解法非常 pitchable，而且容易吸引早期 media coverage』\n"
-    "- 『我們可以用 freemium 模型驗證 user retention，再逐步轉向付費方案』"
-)
+    keys = key.split(".")
+    val = prompts
+    for k in keys:
+        val = val.get(k, {})
 
+    return val if val else key
 
-Engineer_prompt = (
-    "你是 Engineer。你是這家新創的首席工程師，負責產品的技術落地與資源調度，熟悉 MVP 開發、模組化設計與系統效能考量。"
-    "你重視的是：**可行性、可擴充性、技術負債控制、維護性、以及團隊 bandwidth 是否足夠實作**。"
+Businessman_prompt = get_prompt("agents.businessman.prompt")
 
-    "你慣用的詞彙包括：tech stack、latency、code debt、CI/CD、RESTful API、data pipeline、load test、edge case、resource constraint、infra cost。"
+Engineer_prompt = get_prompt("agents.engineer.prompt")
 
-    "🎯 你的目標是："
-    "1️⃣ 在預算與時間（2 週內）限制下，找出 **可以做出來的版本**\n"
-    "2️⃣ 評估每個點子從技術觀點有無『高風險地雷』或明顯 impractical 的設計\n"
-    "3️⃣ 主動提出替代技術方案或更快的技術驗證方法"
-
-    "🚫 請避免："
-    "過度關注市場、品牌或使用者成長策略；你只關心『這東西 build 不 build 得出來』。"
-
-    "💬 常用語氣範例："
-    "- 『這個需要 edge device 做數據前處理，否則 cloud latency 太高』\n"
-    "- 『我傾向先用 Python 快速測 MVP，再重構成更穩的堆疊』\n"
-    "- 『這個想法不錯，但我們沒足夠 bandwidth 支援 BLE 通訊與 UI 同時開發』"
-)
-
-neutral_prompt = (
-    "你是討論創意問題的中立參與者，目標是提出清晰、有邏輯且具啟發性的創新建議。"
-    "請根據使用者的主題與思考方法，提出合理、有創新潛力的觀點，不需考慮特定專業或立場。"
-)
+neutral_prompt = get_prompt("agents.neutral.prompt")
 
 
 AGENT_CONFIG = {
@@ -564,9 +571,9 @@ def format_peer_responses(responses: dict, current_agent: str) -> tuple[str, str
                 display_name = get_display_name(tag)
 
         if name == current_agent:
-            self_line = f"🧠 **你上一輪提到的觀點：**\n{resp.strip()}"
+            self_line = f"{t('prompt.self_previous')}\n{resp.strip()}"
         elif name != "User":
-            peer_lines.append(f"💬 **{display_name} 說：**\n{resp.strip()}")
+            peer_lines.append(f"{t('prompt.peer_said').format(name=display_name)}\n{resp.strip()}")
 
     peer_block = "\n\n".join(peer_lines)
     return self_line, peer_block
@@ -588,9 +595,6 @@ if f"{user_session_id}_round_num" not in st.session_state:
 # Initialize or retrieve user input storage
 if f"{user_session_id}_user_inputs" not in st.session_state:
     st.session_state[f"{user_session_id}_user_inputs"] = {}
-
-# if f"{user_session_id}_current_input" not in st.session_state:
-#     st.session_state[f"{user_session_id}_current_input"] = ""
 
 if f"{user_session_id}_show_input" not in st.session_state:
     st.session_state[f"{user_session_id}_show_input"] = True
@@ -614,8 +618,8 @@ if f"{user_session_id}_selected_persistent_ideas" not in st.session_state:
     st.session_state[f"{user_session_id}_selected_persistent_ideas"] = {}
 
 if f"{user_session_id}_current_input_method" not in st.session_state:
-    st.session_state[f"{user_session_id}_current_input_method"] = {1: "自由輸入"}
-
+    st.session_state[f"{user_session_id}_current_input_method"] = {1: "free_input"}
+    
 if f"{user_session_id}_agent_restriction" not in st.session_state:
     st.session_state[f"{user_session_id}_agent_restriction"] = {0: list(AGENT_CONFIG.keys())}
 
@@ -723,9 +727,6 @@ for message in st.session_state[f"{user_session_id}_messages"]:
             """,
             unsafe_allow_html=True,
         )
-    # elif message["role"] == "history":
-    #      with st.expander(f"對話紀錄", expanded=False):
-    #         st.markdown(message["content"], unsafe_allow_html=True)
     else:
         if message["role"] == "assistant":
             with st.chat_message("assistant"):
@@ -755,14 +756,16 @@ async def single_round_discussion(round_num, agents, user_proxy):
 
 
     if round_num == 0:
-        discussion_message = (
-            f"**第 {round_num} 輪討論**\n\n"
-            f"請直接列出與『{st.session_state[f'{user_session_id}_user_question']}』相關的創新點子，每個點子請附上一句簡短的主要用途，最多 **不超過兩句**。\n\n"
+
+        discussion_message = get_prompt("discussion.round_start").format(
+            round=round_num,
+            question=st.session_state[f"{user_session_id}_user_question"]
         )
 
+        discussion_message_for_showing = t("ui.round_start_display").format(
+            question=st.session_state[f"{user_session_id}_user_question"]
+        )
 
-        # 用於顯示給使用者的內容（簡化版）
-        discussion_message_for_showing = f"請提供與 **{st.session_state[f"{user_session_id}_user_question"]}** 相關的創意點子，每個點子附加簡單用途即可。"
     else:
 
         # 上一輪的討論紀錄  
@@ -772,57 +775,55 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 continue
             last_round_response[agent_name] = response
 
-        current_method = st.session_state[f"{user_session_id}_current_input_method"].get(st.session_state[f"{user_session_id}_round_num"], "自由輸入")
-        
-        if current_method == "選擇創意思考技術":
-            # **創意思考技術對應的解釋**
-            technique_explanations = {                
-                # SCAMPER 方法
-                "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
-                "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
-                "SCAMPER - Adapt（適應）": "將一個產品的特性應用到另一個產品上。",
-                "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
-                "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
-                "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
-                "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
+        current_method = st.session_state[f"{user_session_id}_current_input_method"].get(
+            st.session_state[f"{user_session_id}_round_num"],
+            "free_input"
+        )
+
+        if current_method == "scamper_input":
+            SCAMPER_KEYS = [
+                "substitute",
+                "combine",
+                "adapt",
+                "modify",
+                "put_to_use",
+                "eliminate",
+                "reverse"
+            ]
+
+            label_to_key = {
+                t(f"ui.scamper.{k}.label"): k for k in SCAMPER_KEYS
             }
 
-            # **取得使用者選擇的技術**
-            selected_technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num-1, "")
+            selected_technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num - 1, "")
+            selected_key = label_to_key.get(selected_technique)
 
-            # **獲取對應的解釋**
-            technique_description = technique_explanations.get(selected_technique, "（未找到對應的解釋）")
-
-
-            discussion_message = (
-                f"這輪我們持續延伸「{st.session_state[f'{user_session_id}_user_question']}」這個主題的創意。\n\n"
-                f"- **第 {round_num} 輪討論** \n\n"
-                f"- **請聚焦在以下創意進行延伸思考：**\n\n"
-                f"- 使用者選擇的創意：**{st.session_state[f'{user_session_id}_user_inputs'].get(round_num-1, '')}**\n\n"
-                f"- 使用的創意思考技術：**{selected_technique}**\n\n"
-                f"- 方法應用說明：{technique_description}\n\n"
+            technique_description = (
+                t(f"ui.scamper.{selected_key}.description")
+                if selected_key
+                else "（未找到對應的解釋）"
             )
 
+            selected_idea = st.session_state[f"{user_session_id}_user_inputs"].get(round_num - 1, "")
 
-            # discussion_message_for_showing = (
-            #     f"這輪我們持續延伸「{st.session_state[f'{user_session_id}_user_question']}」這個主題的創意。\n\n"
-            #     f"- **第 {round_num} 輪討論** 🔄\n\n"
-            #     f"- **請聚焦在以下創意進行延伸思考：**\n\n"
-            #     f"- 使用者選擇的創意：**{st.session_state[f'{user_session_id}_user_inputs'].get(round_num-1, '')}**\n\n"
-            #     f"- 使用的創意思考技術：**{selected_technique}**\n\n"
-            #     f"- 方法應用說明：{technique_description}\n\n"
-            #     f"- 請從你的專業視角出發，針對這個創意延伸一個有價值的新想法。\n"
-            # )
-        
-        elif current_method == "自由輸入":
-            discussion_message = (
-                f"這輪我們持續延伸「{st.session_state[f'{user_session_id}_user_question']}」這個主題的創意。\n\n"
-                f"第 {round_num} 輪討論 \n\n"
-                f"使用者的想法： 「{st.session_state[f'{user_session_id}_user_inputs'].get(round_num-1, '')}」 \n\n"
-                # f"📌 **上一輪討論紀錄:** {last_round_response}\n\n"
-                # f"📝 **請基於上一輪的討論和使用者的想法做延伸！**\n\n "
+            discussion_message = get_prompt("discussion.scamper_input").format(
+                question=st.session_state[f"{user_session_id}_user_question"],
+                round=round_num,
+                idea=selected_idea,
+                technique_label=selected_technique,
+                technique_description=technique_description
             )
-            discussion_message_for_showing = st.session_state[f"{user_session_id}_user_inputs"].get(round_num-1, "")
+
+        elif current_method == "free_input":
+            user_input = st.session_state[f"{user_session_id}_user_inputs"].get(round_num - 1, "")
+
+            discussion_message = get_prompt("discussion.free_input").format(
+                question=st.session_state[f"{user_session_id}_user_question"],
+                round=round_num,
+                user_input=user_input
+            )
+
+            discussion_message_for_showing = user_input            
 
     for agent_name, agent in agents.items():
         # 最後一個 agent 後等待user_input後再進行下一輪
@@ -833,48 +834,32 @@ async def single_round_discussion(round_num, agents, user_proxy):
             # st.write(f"this_round_method: {this_round_method}")
             # st.write(f"this_round_idea: {this_round_idea}")
 
-            technique_explanations = {                
-                # SCAMPER 方法
-                "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
-                "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
-                "SCAMPER - Adapt（適應）": "將一個產品的特性應用到另一個產品上。",
-                "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
-                "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
-                "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
-                "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
-            }
-
-
 
             # 處理用戶輸入，只針對當前輪次
             if this_round_idea != "":
+                next_round = st.session_state.get(f"{user_session_id}_round_num", 0) + 1
+                agents = st.session_state[f"{user_session_id}_agent_restriction"].get(next_round, ["未選擇"])
+
+                feedback_text = t("ui.feedback_yes") if st.session_state[f"{user_session_id}_ai_feedback_enabled"] else t("ui.feedback_no")
+                agent_text = ", ".join([get_display_name(a) for a in agents])
+
                 if this_round_method == "":
-                    next_round = st.session_state.get(f"{user_session_id}_round_num", 0) + 1
-                    agents = st.session_state[f"{user_session_id}_agent_restriction"].get(next_round, ["未選擇"])
-
-                    this_round_user_idea = (f"{this_round_idea}\n\n")
-                    this_round_user_idea_show_feedback = (f"- **使用者輸入：**{this_round_idea}\n\n"
-                    f"- **選擇回答的 Agent：**{', '.join([get_display_name(a) for a in agents])}\n\n"
-                    f"- **是否開啟 Agent 互相回饋：** {'是' if st.session_state[f'{user_session_id}_ai_feedback_enabled'] else '否'}\n\n"
-                    # f"- **是否啟用 Agent Personas：** {'是' if st.session_state[f'{user_session_id}_use_persona'] else '否'}\n\n"
+                    this_round_user_idea = f"{this_round_idea}\n\n"
+                    this_round_user_idea_show_feedback = t("ui.user_feedback_free").format(
+                        idea=this_round_idea,
+                        agents=agent_text,
+                        feedback=feedback_text
                     )
+                else:
 
-                else:                    
-                    next_round = st.session_state.get(f"{user_session_id}_round_num", 0) + 1
-                    agents = st.session_state[f"{user_session_id}_agent_restriction"].get(next_round, ["未選擇"])
-
-                    this_round_user_idea = (
-                    f"- **使用者選擇的創意：**「{this_round_idea}」\n\n"
-                    f"- **使用者選擇的創意思考技術：**「{this_round_method}」\n\n"
-                    f"- **方法應用說明：** {technique_explanations[this_round_method]}\n\n"
-                    f"- **選擇回答的 Agent：**{', '.join([get_display_name(a) for a in agents])}\n\n"
-                    f"- **是否開啟 Agent 互相回饋：** {'是' if st.session_state[f'{user_session_id}_ai_feedback_enabled'] else '否'}\n\n"
-                    # f"- **是否啟用 Agent Personas：** {'是' if st.session_state[f'{user_session_id}_use_persona'] else '否'}\n\n"
+                    this_round_user_idea = t("ui.user_feedback_scamper").format(
+                        idea=this_round_idea,
+                        technique=f"SCAMPER：{this_round_method}",
+                        description=t(f"scamper.{this_round_method}.description"),
+                        agents=agent_text,
+                        feedback=feedback_text
                     )
-                    
                     this_round_user_idea_show_feedback = this_round_user_idea
-
-
 
                 # Add user message to chat history
                 st.session_state[f"{user_session_id}_messages"].append({"role": "user", "content": this_round_user_idea_show_feedback})
@@ -900,27 +885,8 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     continue
                 this_round_response[agent_name_each] = response
 
-            category_prompt = (
-                f"你是一個擅長資訊統整的 AI，負責從不同 AI 助手的回應中，"
-                f"**綜合相似觀點，去除重複內容，並直接輸出精煉的 Idea**。"
-
-                f"\n\n**這一輪的討論紀錄：**"
-                f"\n{this_round_response}"
-
-                f"\n\n**請根據以下規則統整 Idea，並且回應格式只包含整理過的 Idea 清單：**"
-                f"\n1️⃣ **合併相似的 Idea**：如果多個 AI 提出了類似的想法，請合併它們，使內容更簡潔有力。"
-                f"\n2️⃣ **刪除冗餘內容**：去除任何相同或過於接近的 Idea，避免重複。"
-                f"\n3️⃣ **確保每個 Idea 具有清晰的描述**，使其可以獨立理解。"
-                f"\n4️⃣ **格式要求**：回應時請只輸出以下格式，**不要添加其他文字、說明或總結**。"
-
-                f"\n **統整後的可選 Idea（請以「概念: 說明」的格式回應）：**\n"
-                f"\n✅ Idea 1: **概念 1**，這裡請填入合併後的說明"
-                f"\n✅ Idea 2: **概念 2**，這裡請填入合併後的說明"
-                f"\n✅ Idea 3: **概念 3**，這裡請填入合併後的說明"
-                f"\n✅ Idea N: **概念 N**，這裡請填入合併後的說明"
-
-                f"\n\n⚠️ **請確保你的回應只包含這些整理後的 Idea，並在最後提供 2-3 句話的摘要，歸納討論的核心重點。"
-                f"不要額外補充說明、分析或其他內容。**"
+            category_prompt = get_prompt("assistant.category_prompt").format(
+                responses=this_round_response
             )
 
             response = await agent.a_initiate_chat(user_proxy, message=category_prompt, max_turns=1, clear_history=True)
@@ -945,19 +911,10 @@ async def single_round_discussion(round_num, agents, user_proxy):
             if round_num == 0:
                 persona_info = f"{agents[agent_name].system_message}\n\n" if st.session_state[f"{user_session_id}_use_persona"] else ""
 
-                discussion_message_temp = discussion_message + (
-                    f"**請確保：**\n"
-                    f"1.  **每個創意點子名稱清楚**\n"
-                    f"2.  **用途簡明扼要（1 句話最佳，最多 2 句話）**\n"
-                    f" {persona_info}\n\n"
-                    f"請用以上的角色設定來發想點子，並確保格式如下：\n"
-                    f"✅ **Idea 1** - 主要用途（最多兩句）\n"
-                    f"✅ **Idea 2** - 主要用途（最多兩句）\n"
-                    f"✅ **Idea 3** - 主要用途（最多兩句）\n"
-                    f"✅ **Idea N** - 主要用途（最多兩句）\n"
-                    f"確保以zh-TW語言回應。\n\n"
-
+                discussion_message_temp = discussion_message + get_prompt("agent_response.round0_suffix").format(
+                    persona_info=persona_info
                 )
+                
                 # discussion_message_for_showing = discussion_message_for_showing + (
                 #     f"\n\n- 請根據你的專業視角回答！\n\n"
                 #     # f"\n\n🎭 {agents[agent_name].system_message}\n\n"
@@ -978,10 +935,9 @@ async def single_round_discussion(round_num, agents, user_proxy):
                     self_response, peer_feedback = format_peer_responses(last_round_response, current_agent=agent_name)
 
                     if peer_feedback != "":
-                        peer_feedback_block += (
-                            f"---\n\n"
-                            f"你自己的觀點：\n\n「{self_response.strip()}」\n\n"
-                            f"👀 你也看到其他 Agent 的一些觀點，例如：\n\n「{peer_feedback.strip()}」\n\n"
+                        peer_feedback_block += get_prompt("agent_response.peer_feedback_with_others").format(
+                            self_response=self_response.strip(),
+                            peer_feedback=peer_feedback.strip()
                         )
                 else:
                     last_round_response = {
@@ -1001,89 +957,52 @@ async def single_round_discussion(round_num, agents, user_proxy):
                 discussion_message_temp = discussion_message  # 先從第一段開始組
 
 
-                if current_method == "自由輸入":
-                    section1 = (
-                        f"**1. 我覺得**：請以一句粗體句子到句點開頭，回應使用者的輸入內容（用第一人稱），"
-                        f"清楚表達你這輪的創新主張，表達你這輪的創新主張與延伸（用第一人稱），並且換兩行，接著補充說明，總長度約 2～3 句。\n\n"
-                    )
+                if current_method == t("ui.free_input"):
+                    section1 = get_prompt("agent_response.section1_free_input")
                 else:
-                    technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num, "（未指定技術）")
-                    section1 = (
-                        f"**1. 我覺得**：請以一句粗體句子到句點開頭，應用 {technique} 的邏輯來延伸使用者的選擇創意（用第一人稱），"
-                        f"表達你這輪的創新主張與延伸（用第一人稱），並且換兩行，接著補充說明，總長度約 2～3 句。\n\n"
+                    technique = st.session_state[f"{user_session_id}_selected_technique"].get(round_num, t("ui.not_specified"))
+                    section1 = get_prompt("agent_response.section1_scamper").format(
+                        technique=technique
                     )
 
-                # 🔹 第三段：身份與風格提醒（結尾固定加）
-                if st.session_state[f"{user_session_id}_use_persona"]:
-                    # 有 persona 的 Agent, 有 peer feedback
-                    if st.session_state[f'{user_session_id}_ai_feedback_enabled']:
-                        identity_block = (
-                            f"---\n\n"
-                            f"- 你的角色設定：{agents[agent_name].system_message}\n\n"
-                            f"請根據以下格式，依序完成兩段角色回應，並務必遵守格式規定：\n\n"
-                            f"{section1}"
-                            f"**2. 對另一位角色的回應**：用一句粗體句子到句點開頭，點出你對上輪某角色觀點的認同、質疑、或補充，並且加上，接著補述你的延伸觀點，總長度約 2～3 句。\n\n"
-                            f"請絕對遵守不要寫出「主張內容：」或「對另一位角色的回應：」等提示文字，只輸出內容本身。\n\n"
-                            f"`1.` 和 `2.` 段落標號請務必寫出來，**不能省略！**\n\n"
-                            f"請務必按照上面格式，每段都以「粗體主張句」開頭（用句號結尾），其後用自然語言補充描述。\n\n"
-                            f"不需要加入任何 emoji 或多餘開頭語（如：以下是我的建議）。"
-                            f"格式範例如下：\n\n"
-                            f"**1. 我主張應結合風箏文化與節慶活動來創造品牌識別。**\n\n"
-                            f"這樣不僅能讓消費者更有情感連結，也能利用節慶集中曝光，強化市場話題性。\n\n"
-                            f"**2. 我認同 Engineer 提出的模組化概念，但建議以教育活動來強化理解。**\n\n"
-                            f"模組化雖具彈性，但若能配合實體教學或展示活動，能幫助用戶更快上手，也更利於推廣。"
-                            f"---\n\n"
-                        )
-                    # 有 persona 的 Agent, 沒有 peer feedback
-                    elif st.session_state[f'{user_session_id}_ai_feedback_enabled'] == False:
-                        identity_block = (
-                            f"---\n\n"
-                            f"- 你的角色設定：{agents[agent_name].system_message}\n\n"
-                            f"請根據以下格式，依序完成兩段角色回應，並務必遵守格式規定：\n\n"
-                            f"{section1}"
-                            f"請絕對遵守不要寫出「主張內容：」或「對另一位角色的回應：」等提示文字，只輸出內容本身。\n\n"
-                            f"`1.` 和 `2.` 段落標號請務必寫出來，**不能省略！**\n\n"
-                            f"請務必按照上面格式，每段都以「粗體主張句」開頭（用句號結尾），其後用自然語言補充描述。\n\n"
-                            f"不需要加入任何 emoji 或多餘開頭語（如：以下是我的建議）。"
-                            f"格式範例如下：\n\n"
-                            f"**1. 我主張應結合風箏文化與節慶活動來創造品牌識別。**\n\n"
-                            f"這樣不僅能讓消費者更有情感連結，也能利用節慶集中曝光，強化市場話題性。\n\n"
-                            f"---\n\n"
-                        )
-                elif st.session_state[f"{user_session_id}_use_persona"] == False:
-                    # 沒有 persona 的 Agent, 有 peer feedback
-                    if st.session_state[f'{user_session_id}_ai_feedback_enabled']:
-                        identity_block = (
-                            f"請根據以下格式，依序完成角色回應，並務必遵守格式規定：\n\n"
-                            f"{section1}"
-                            f"**2. 對另一位角色的回應**：用一句粗體句子到句點開頭，點出你對上輪某角色觀點的認同、質疑、或補充，並且加上\n\n，接著補述你的延伸觀點，總長度約 2～3 句。\n\n"
-                            f"請絕對遵守不要寫出「主張內容：」等提示文字，只輸出內容本身。\n\n"
-                            f"`1.` 和 `2.` 段落標號請務必寫出來，**不能省略！**\n\n"
-                            f"請務必按照上面格式，每段都以「粗體主張句」開頭（用句號結尾），其後用自然語言補充描述。\n\n"
-                            f"不需要加入任何 emoji 或多餘開頭語（如：以下是我的建議）。"
-                            f"格式範例如下：\n\n"
-                            f"**1. 我主張應結合風箏文化與節慶活動來創造品牌識別。**\n\n"
-                            f"這樣不僅能讓消費者更有情感連結，也能利用節慶集中曝光，強化市場話題性。\n\n"
-                            f"**2. 我認同 Engineer 提出的模組化概念，但建議以教育活動來強化理解。**\n\n"
-                            f"模組化雖具彈性，但若能配合實體教學或展示活動，能幫助用戶更快上手，也更利於推廣。"
-                            f"---\n\n"
-                        )
-                    elif st.session_state[f'{user_session_id}_ai_feedback_enabled'] == False:
-                        # 沒有 persona 的 Agent, 沒有 peer feedback
-                        identity_block = (
-                            f"請根據以下格式，完成角色回應，並務必遵守格式規定：\n\n"
-                            f"{section1}"
-                            f"請絕對遵守不要寫出「主張內容：」等提示文字，只輸出內容本身。\n\n"
-                            f"`1.` 和 `2.` 段落標號請務必寫出來，**不能省略！**\n\n"
-                            f"請務必按照上面格式，每段都以「粗體主張句」開頭（用句號結尾），其後用自然語言補充描述。\n\n"
-                            f"不需要加入任何 emoji 或多餘開頭語（如：以下是我的建議）。"
-                            f"格式範例如下：\n\n"
-                            f"**1. 我主張應結合風箏文化與節慶活動來創造品牌識別。**\n\n"
-                            f"這樣不僅能讓消費者更有情感連結，也能利用節慶集中曝光，強化市場話題性。\n\n"
-                            f"---\n\n"
-                        )
+                # =========================
+                # 🧩 組合 Agent 回答格式（identity_block）
+                # =========================
 
+                # 🔹 Step 1：決定是否需要「第2段（回應其他 Agent）」
+                # 有開啟 AI feedback → 要 section2
+                # 沒開 → 不需要
+                section2 = (
+                    get_prompt("agent_response.section2_with_feedback")
+                    if st.session_state[f"{user_session_id}_ai_feedback_enabled"]
+                    else get_prompt("agent_response.section2_without_feedback")
+                )
 
+                # 🔹 Step 2：決定範例（有沒有包含第2段）
+                example_text = (
+                    get_prompt("agent_response.example_with_feedback")
+                    if st.session_state[f"{user_session_id}_ai_feedback_enabled"]
+                    else get_prompt("agent_response.example_without_feedback")
+                )
+
+                # 🔹 Step 3：決定使用哪種 Prompt 模板
+                # 有 persona → 帶角色設定
+                # 沒 persona → 中立版本
+                template_key = (
+                    "agent_response.identity_with_persona"
+                    if st.session_state[f"{user_session_id}_use_persona"]
+                    else "agent_response.identity_without_persona"
+                )
+
+                # 🔹 Step 4：組合完整 Prompt
+                # ⚠️ 真正的 prompt 內容在 JSON（prompts/*.json）
+                # 這裡只是把變數塞進去
+                identity_block = get_prompt(template_key).format(
+                    persona=agents[agent_name].system_message,  # 角色描述（Businessman / Engineer）
+                    section1=section1,                         # 第一段指示（前面已組好）
+                    section2=section2,                         # 是否包含第二段
+                    example=example_text                       # 範例（幫助模型理解格式）
+                )
 
                 # 🧩 組合成完整 prompt
                 discussion_message_temp = discussion_message
@@ -1163,7 +1082,12 @@ def fadein_markdown(md_text, delay=0.4):
 
 # 在輸入框消失後顯示提示，然後再顯示下一輪輸入框
 if not st.session_state[f"{user_session_id}_show_input"]:
-    st.write(f"已完成第 {st.session_state[f"{user_session_id}_round_num"] - 1} 輪的輸入！")
+    st.write(
+        t(
+            "ui.round_input_completed",
+            round=st.session_state[f"{user_session_id}_round_num"] - 1
+        )
+    )
     st.session_state[f"{user_session_id}_show_input"] = True
 
 if f"{user_session_id}_user_proxy" not in st.session_state:
@@ -1191,7 +1115,7 @@ if f"{user_session_id}_agents" not in st.session_state:
     agents["Assistant"] = ConversableAgent(
         name=sanitize_name(f"Assistant_{user_session_id}"),
         llm_config=llm_config,
-        system_message="你是 Assistant，負責將點子...",
+        system_message=get_prompt("agents.assistant.prompt"),
         code_execution_config={"use_docker": False}
     )
 
@@ -1209,37 +1133,41 @@ if f"{user_session_id}_agents" not in st.session_state:
     
 if not st.session_state.get(f"{user_session_id}_discussion_started", False):
     question_options = [
-        "請選擇討論問題",
-        # "風箏除了娛樂，還能用什麼其他創意用途？",
-        # "枕頭除了睡覺，還能如何幫助放鬆或解決日常問題？",
-        "如果穿越空間技術存在，可能會有哪些全新的交通方式？",
-        # "如果穿越時間技術存在，可能會有哪些全新的交通方式？",
-        "磚頭除了蓋房子，還能有哪些意想不到的用途？",
-        "掃帚除了掃地，還能有哪些意想不到的用途？",
-        # "🔧 自訂問題"
+        t("questions.placeholder"),
+        t("questions.q1"),
+        t("questions.q2"),
+        t("questions.q3"),
+        # t("questions.custom")
     ]
     
-    selected_question = st.selectbox("請選擇討論問題：", question_options)
+    selected_question = st.selectbox(t("ui.select_question"), question_options)
 
     # **如果選擇 "🔧 自訂問題"，顯示輸入框**
-    if selected_question == "🔧 自訂問題":
-        custom_question = st.text_input("請輸入你的問題：", value=st.session_state.get(f"{user_session_id}_user_question", ""))
-        question = custom_question if custom_question else "請輸入你的問題"
+    if selected_question == t("questions.custom"):
+        custom_question = st.text_input(
+            t("questions.custom_input"),
+            value=st.session_state.get(f"{user_session_id}_user_question", "")
+        )
+        question = custom_question if custom_question else t("questions.custom_input")
     else:
         question = selected_question
 
     # **確保 question 存入 session_state**
-    if question != "請選擇討論問題":
+    if question != t("questions.placeholder"):
         st.session_state[f"{user_session_id}_user_question"] = question
 
         # **開始按鈕**
-        if st.button("開始 LLM 討論"):
+        if st.button(t("ui.start_discussion")):
             for agent in st.session_state[f"{user_session_id}_agents"].values():
                 agent.clear_history()  # 清空內部記憶
 
             st.session_state[f"{user_session_id}_discussion_started"] = True
             st.session_state[f"{user_session_id}_round_num"] = 0
-            st.session_state[f"{user_session_id}_integrated_message"] = f"這是第 0 輪討論，{st.session_state[f"{user_session_id}_user_question"]}。"
+            st.session_state[f"{user_session_id}_integrated_message"] = t(
+                "ui.integrated_message_round0",
+                round=0,
+                question=st.session_state[f"{user_session_id}_user_question"]
+            )
             st.rerun()  # **強制重新整理頁面，隱藏選擇問題的 UI**
 
 if st.session_state[f"{user_session_id}_discussion_started"] and st.session_state[f"{user_session_id}_round_num"] <= rounds:
@@ -1255,8 +1183,8 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
     idea_options = st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", [])
 
     if idea_options:
-        with st.expander(f"**第 {round_num} 輪 AI 產生的創意點子**", expanded=True):
-            st.write("經過這輪的討論，總結出以下幾個點子，有哪些想先收藏的嗎？")
+        with st.expander(f"**{t('ui.round_idea_expander', round=round_num)}**", expanded=True):
+            st.write(t("ui.round_idea_summary"))
 
             for idea in idea_options:
                 if idea in st.session_state[f"{user_session_id}_selected_persistent_ideas"]:
@@ -1266,65 +1194,54 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                 if st.checkbox(f"{idea}", key=f"select_{round_num}_{idea}"):
                     # **加入收藏並記錄輪數**
                     st.session_state[f"{user_session_id}_selected_persistent_ideas"][idea] = round_num
-                    st.toast(f"已收藏：{idea}（第 {round_num} 輪）")  # 顯示通知
+                    st.toast(t("ui.idea_saved_toast", idea=idea, round=round_num))  # 顯示通知
                     st.rerun()  # **重新刷新頁面**
 
     if not st.session_state[f"{user_session_id}_round_{round_num}_input_completed"]:
 
         enable_scamper_input = st.session_state[f"{user_session_id}_enable_scamper_input"]
     
-        tab_labels = ["自由輸入", "選擇創意思考技術"] if enable_scamper_input else ["自由輸入"]
+        tab_labels = [t("ui.free_input"), t("ui.scamper_input")] if enable_scamper_input else [t("ui.free_input")]
         tabs = st.tabs(tab_labels)
 
 
         for i, tab in enumerate(tabs):
-            if tab_labels[i] == "自由輸入":
+            if tab_labels[i] == t("ui.free_input"):
                 with tab:
                     with st.container(border=True):
-                        user_inputs = st.text_area(f"**請輸入第 {st.session_state[f"{user_session_id}_round_num"]} 輪的想法：**")
+                        user_inputs = st.text_area(
+                            f"**{t('ui.input_round_idea', round_num=st.session_state[f'{user_session_id}_round_num'])}**"
+                        )
                     
-                    with st.expander(f"**AI 回應設定**", expanded=True):
+                    with st.expander(f"**{t('ui.ai_response_settings')}**", expanded=True):
                         # 限制可選的 Agent 為 "Businessman" 和 "Engineer"
                         available_agents = [get_display_name(tag) for tag in AGENT_CONFIG]
 
-                        # 更新 multiselect 讓使用者只能選這兩個角色
-                        # selected_agents = st.multiselect(
-                        #     f"**請選擇第 {st.session_state[f'{user_session_id}_round_num']} 輪回應的 Agent：**",
-                        #     available_agents,  # 只允許這兩個選項
-                        #     default=available_agents,  # 預設都勾選
-                        #     key=f"{user_session_id}_selected_agents_{round_num}_free_input"
-                        # )
-
-
-                        selected_agents =  st.multiselect(
-                            f"**請選擇第 {st.session_state[f'{user_session_id}_round_num']} 輪回應的 Agent：**",
-                            options=list(AGENT_CONFIG.keys()),  # 真正用的是 tag
+                        selected_agents = st.multiselect(
+                            f"**{t('ui.select_agents_for_round', round=st.session_state[f'{user_session_id}_round_num'])}**",
+                            options=list(AGENT_CONFIG.keys()),
                             default=list(AGENT_CONFIG.keys()),
-                            format_func=lambda tag: get_display_name(tag), # 顯示 persona/neutral name
+                            format_func=lambda tag: get_display_name(tag),
                             key=f"{user_session_id}_selected_agents_{round_num}_free_input"
                         )
 
                         # 是否要互相給對方Agent的回答
-                        # ai_feedback_enabled = st.checkbox("開啟 AI 互相回饋", value=st.session_state[f"{user_session_id}_ai_feedback_enabled"], key=f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", disabled=len(selected_agents) < 2)
                         if f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input" not in st.session_state:
                             st.session_state[f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input"] = True
                         
                         st.checkbox(
-                            "開啟 AI 互相回饋",
+                            f"**{t('ui.enable_ai_feedback')}**",
                             key=f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input",
                             disabled=len(selected_agents) < 2
                         )
 
-                        # ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", False)
                         
                         if len(selected_agents) < 2:
-                            st.info("⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能")
-                        #     ai_feedback_enabled = False
-                        # st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
+                            st.info(t("ui.ai_feedback_requires_two_agents"))
 
-                    if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_free_input"):
+                    if st.button(t("ui.submit_selection"), key=f"{user_session_id}_submit_{round_num}_free_input"):
                         st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]+1] = selected_agents
-                        st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "自由輸入"
+                        st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "free_input"
 
                         ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_free_input", True)
                         if len(selected_agents) < 2:
@@ -1342,12 +1259,20 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                                 st.session_state[f"{user_session_id}_round_num"], st.session_state[f"{user_session_id}_agents"], st.session_state[f"{user_session_id}_user_proxy"]
                             ))
 
-            elif tab_labels[i] == "選擇創意思考技術":
+            elif tab_labels[i] == t("ui.scamper_input"):
                 with tab:
                     # **方式 2：使用 selectbox 選擇創意思考技術**
                     with st.container(border=True):
-                        idea_source = st.radio(f"**選擇創意來源**", [f"**第 {round_num} 輪 AI 產生的創意點子**", "**已收藏的 Idea**"])
-                        if idea_source == f"**第 {round_num} 輪 AI 產生的創意點子**":
+                        st.write(f"**{t('ui.select_creative_technique')}**")
+                        idea_source = st.radio(
+                            f"**{t('ui.idea_source')}**",
+                            [
+                                f"**{t('ui.current_round_ideas', round_num=round_num)}**",
+                                f"**{t('ui.saved_idea_source')}**"
+                            ]
+                        )
+
+                        if idea_source == f"**{t('ui.current_round_ideas', round_num=round_num)}**":
                             if st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", []):
                                 idea_options = st.session_state[f"{user_session_id}_idea_options"].get(f"round_{round_num}", [])
                         else:
@@ -1358,124 +1283,93 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
 
 
                         # 傳入 Idea 的多選選項
-                        user_inputs = st.multiselect(f"**請選擇您想延伸的Idea（來源：{idea_source}）**", idea_options_cleaned)
+                        user_inputs = st.multiselect(
+                            f"**{t('ui.select_ideas_to_extend', idea_source=idea_source)}**",
+                            idea_options_cleaned
+                        )
                         
                     
-
-                        technique_explanations = {                
-                            # SCAMPER 方法
-                            "SCAMPER - Substitute（替代）": "用另一種材料或方法替代原本的某個部分。",
-                            "SCAMPER - Combine（結合）": "把兩個不同的產品或功能合併成新的東西。",
-                            "SCAMPER - Modify（修改）": "改變尺寸、形狀、顏色等，讓它更吸引人。",
-                            "SCAMPER - Adapt（適應）": "將一個產品的特性應用到另一個產品上。",
-                            "SCAMPER - Put to another use（變更用途）": "讓一個東西變成完全不同的用途。",
-                            "SCAMPER - Eliminate（刪除）": "移除某些不必要的部分，讓產品更簡單。",
-                            "SCAMPER - Reverse（反轉）": "顛倒順序、角色，產生新的可能性。",
-                        }
-
-                        technique_examples = {
-                            "SCAMPER - Substitute（替代）": "用地瓜取代馬鈴薯，做出「地瓜薯條」。",
-                            "SCAMPER - Combine（結合）": "耳機+帽子，做成「內建藍牙耳機的毛帽」。",
-                            "SCAMPER - Adapt（適應）": "將運動鞋的設計靈感用在辦公拖鞋上，讓久站的工作者也能獲得支撐和舒適。",
-                            "SCAMPER - Modify（修改）": "縮小漢堡，變成迷你漢堡，適合派對小食！",
-                            "SCAMPER - Put to another use（變更用途）": "用舊行李箱變成寵物床，回收再利用！",
-                            "SCAMPER - Eliminate（刪除）": "拿掉遊戲手柄的按鍵，改用體感控制，像是 Switch！",
-                            "SCAMPER - Reverse（反轉）": "內餡放外面的「內倒披薩」，讓起司包住餅皮！",
-                        }
-
-                        # SCAMPER 技術選項
-                        scamper_options = [
-                            "Substitute（替代）",
-                            "Combine（結合）",
-                            "Modify（修改）",
-                            "Adapt（適應）",
-                            "Put to another use（變更用途）",
-                            "Eliminate（刪除）",
-                            "Reverse（反轉）"
+                        SCAMPER_KEYS = [
+                            "substitute",
+                            "combine",
+                            "modify",
+                            "adapt",
+                            "put_to_use",
+                            "eliminate",
+                            "reverse"
                         ]
 
-                        # SCAMPER 方法對應的最大 Idea 數量限制
-                        scamper_idea_limits = {
-                            "Substitute（替代）": 1,
-                            "Combine（結合）": 2,
-                            "Adapt（適應）": 1,
-                            "Modify（修改）": 1,
-                            "Put to another use（變更用途）": 1,
-                            "Eliminate（刪除）": 1,
-                            "Reverse（反轉）": 1
-                        }
+                        
 
-
-                        # 建立水平選單
-                        cols = st.columns(len(scamper_options))  # 建立 N 個欄位
-                        selected_scamper = None  # 初始化選擇變數
-
-                        # 讓 radio 水平排列
                         selected_scamper = st.radio(
-                            f"**請選擇要使用的創意技術：**",
-                            scamper_options,
-                            horizontal=True  # 💡 讓選項橫向排列
+                            f"**{t('ui.select_creative_technique')}**",
+                            SCAMPER_KEYS,
+                            format_func=lambda k: t(f"ui.scamper.{k}.label"),
+                            horizontal=True
                         )
+
+                        scamper_idea_limits = {
+                            "substitute": 1,
+                            "combine": 2,
+                            "adapt": 1,
+                            "modify": 1,
+                            "put_to_use": 1,
+                            "eliminate": 1,
+                            "reverse": 1
+                        }
 
                         # ⛔ 檢查選取的 Idea 數量是否超過限制
                         max_allowed = scamper_idea_limits.get(selected_scamper, 1)
 
-                        st.caption(f"⚙️ 技術「{selected_scamper}」最多只能選擇 {max_allowed} 個創意點子")
+                        st.caption(
+                            t(
+                                "ui.technique_max_ideas",
+                                technique=t(f"ui.scamper.{selected_scamper}.label"),
+                                count=max_allowed
+                            )
+                        )
 
                         # 顯示說明與例子
                         if selected_scamper:
                             st.success(
-                                f"- 你選擇的 SCAMPER 技術：SCAMPER - {selected_scamper}\n\n"
-                                f"- 解釋：{technique_explanations[f"SCAMPER - {selected_scamper}"]}\n\n"
-                                f"- 例子：{technique_examples[f"SCAMPER - {selected_scamper}"]}"
-                        )
+                                t(
+                                    "ui.scamper_selected_summary",
+                                    technique=t(f"ui.scamper.{selected_scamper}.label"),
+                                    description=t(f"ui.scamper.{selected_scamper}.description"),
+                                    example=t(f"ui.scamper.{selected_scamper}.example")
+                                )
+                            )
                             
 
                         if len(user_inputs) > max_allowed:
-                            st.warning(f"⚠️ 已超過最大選擇數量（{max_allowed} 個），請減少選擇的 Idea。")
+                            st.warning(t("ui.too_many_ideas_selected", count=max_allowed))
                             st.stop()  # 或者 st.session_state 鎖住送出按鈕
                             
-                    with st.expander(f"**AI 回應設定**", expanded=True):
+                    with st.expander(f"**{t('ui.ai_response_settings')}**", expanded=True):
                         # 限制可選的 Agent 為 "Businessman" 和 "Engineer"
                         available_agents = [get_display_name(tag) for tag in AGENT_CONFIG]
 
-                        # # 更新 multiselect 讓使用者只能選這兩個角色
-                        # selected_agents = st.multiselect(
-                        #     f"**請選擇第 {st.session_state[f'{user_session_id}_round_num']} 輪回應的 Agent：**",
-                        #     available_agents,  # 只允許這兩個選項
-                        #     default=available_agents,  # 預設都勾選
-                        #     key=f"{user_session_id}_selected_agents_{round_num}_scamper_input"
-                        # )
-
-                        selected_agents =  st.multiselect(
-                            f"**請選擇第 {st.session_state[f'{user_session_id}_round_num']} 輪回應的 Agent：**",
-                            options=list(AGENT_CONFIG.keys()),  # 真正用的是 tag
+                        selected_agents = st.multiselect(
+                            f"**{t('ui.select_agents_for_round', round=st.session_state[f'{user_session_id}_round_num'])}**",
+                            options=list(AGENT_CONFIG.keys()),
                             default=list(AGENT_CONFIG.keys()),
-                            format_func=lambda tag: get_display_name(tag), # 顯示 persona/neutral name
+                            format_func=lambda tag: get_display_name(tag),
                             key=f"{user_session_id}_selected_agents_{round_num}_scamper_input"
                         )
-
-
-                        # 是否要互相給對方Agent的回答
-                        # ai_feedback_enabled = st.checkbox("開啟 AI 互相回饋", value=st.session_state[f"{user_session_id}_ai_feedback_enabled"], disabled=len(selected_agents) < 2, key=f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input")
                         
                         if f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input" not in st.session_state:
                             st.session_state[f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input"] = True
                         
                         st.checkbox(
-                            "開啟 AI 互相回饋",
+                            f"**{t('ui.enable_ai_feedback')}**",
                             key=f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input",
                             disabled=len(selected_agents) < 2
                         )
-
-                        # ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input", False)
                         
                         if len(selected_agents) < 2:
-                            st.info("⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能")
-                        #     ai_feedback_enabled = False
-                        # st.session_state[f"{user_session_id}_ai_feedback_enabled"] = ai_feedback_enabled
+                            st.info(t("ui.ai_feedback_requires_two_agents"))
 
-                    if st.button("送出選擇", key=f"{user_session_id}_submit_{round_num}_scamper_input"):
+                    if st.button(t("ui.submit_selection"), key=f"{user_session_id}_submit_{round_num}_scamper_input"):
                         ai_feedback_enabled = st.session_state.get(f"{user_session_id}_ai_feedback_enabled_{round_num}_scamper_input", False)
                         if len(selected_agents) < 2:
                             ai_feedback_enabled = False
@@ -1484,11 +1378,11 @@ if st.session_state[f"{user_session_id}_discussion_started"] and st.session_stat
                         
                         
                         st.session_state[f"{user_session_id}_agent_restriction"][st.session_state[f"{user_session_id}_round_num"]+1] = selected_agents
-                        st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "選擇創意思考技術"
+                        st.session_state[f"{user_session_id}_current_input_method"][st.session_state[f"{user_session_id}_round_num"]+1] = "scamper_input"
                         if selected_scamper and user_inputs is not None:
                             # 保存 Idea 和 Selected Idea
                             st.session_state[f"{user_session_id}_user_inputs"][round_num] = st.session_state[f"{user_session_id}_user_inputs"][round_num] = ", ".join(user_inputs)
-                            st.session_state[f"{user_session_id}_selected_technique"][round_num] = f"SCAMPER - {selected_scamper}"
+                            st.session_state[f"{user_session_id}_selected_technique"][round_num] = selected_scamper
 
                             selected_main = ""
                             selected_sub = ""
@@ -1520,19 +1414,19 @@ if f"{user_session_id}_is_loading" not in st.session_state:
     st.session_state[f"{user_session_id}_is_loading"] = False  # 控制 `st.spinner()` 顯示狀態
 
 with st.sidebar:
-    with st.expander("**已收藏的 Idea**", expanded=True):
+    with st.expander(f"**{t('ui.saved_ideas')}**", expanded=True):
         if not st.session_state[f"{user_session_id}_selected_persistent_ideas"]:
-            st.info("目前沒有收藏的 Idea。")
+            st.info(t("ui.no_saved_ideas"))
         else:
             ideas_to_remove = []
             for idea, round_collected in st.session_state[f"{user_session_id}_selected_persistent_ideas"].items():
                 col1, col2 = st.columns([0.85, 0.15])
 
                 with col1:
-                    st.write(f"✅ {idea}  \n（第 {round_collected} 輪）")
+                    st.write(f"✅ {idea}  \n（{t('ui.saved_idea_round', round=round_collected)}）")
 
                 with col2:
-                    if st.button(":material/delete:", key=f"delete_saved_{idea}", help="刪除這個 Idea", use_container_width=True):
+                    if st.button(":material/delete:", key=f"delete_saved_{idea}", help=t("ui.delete_saved_idea"), use_container_width=True):
                         ideas_to_remove.append(idea)
 
             # 刪除邏輯
@@ -1542,7 +1436,7 @@ with st.sidebar:
                     if idea not in st.session_state[f"{user_session_id}_idea_list"]:
                         st.session_state[f"{user_session_id}_idea_list"].append(idea)
 
-                st.warning(f"🗑️ 已移除 {len(ideas_to_remove)} 個收藏的 Idea")
+                st.warning(t("ui.removed_saved_ideas", count=len(ideas_to_remove)))
                 st.rerun()
         
             # 清理 Markdown 的小工具函數
@@ -1556,15 +1450,15 @@ with st.sidebar:
 
             # 將收藏的 Idea 資料轉成 DataFrame
             persistent_ideas = st.session_state.get(f"{user_session_id}_selected_persistent_ideas", {})
-            discussion_topic = st.session_state.get(f"{user_session_id}_user_question", "（無題目）")
+            discussion_topic = st.session_state.get(f"{user_session_id}_user_question", t("ui.default_topic"))
 
 
             if persistent_ideas:
                 df = pd.DataFrame([
                     {
-                        "討論題目": discussion_topic,
-                        "Idea": strip_markdown(idea),
-                        "收藏輪數": round_collected
+                        t("ui.topic"): discussion_topic,
+                        t("ui.idea"): strip_markdown(idea),
+                        t("ui.saved_round"): round_collected
                     }
                     for idea, round_collected in persistent_ideas.items()
                 ])
@@ -1580,7 +1474,7 @@ with st.sidebar:
 
                 # 建立下載按鈕
                 st.download_button(
-                    label="下載收藏的 Ideas（CSV）",
+                    label=t("ui.download_saved_ideas_csv"),
                     data=csv_bytes,
                     file_name=filename,
                     mime="text/csv",

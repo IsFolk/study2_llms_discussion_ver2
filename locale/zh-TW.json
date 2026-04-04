@@ -1,0 +1,170 @@
+{
+  "ui": {
+    "backup_success": "成功還原之前的討論內容",
+    "backup_not_found": "沒有找到任何歷史紀錄",
+    "request_failed": "請求失敗",
+
+
+    "page_title": "LLM + Human Discussion Framework",
+    "session_uuid": "Session UUID",
+    "feature_settings": "功能設定",
+    "select_features": "請先讓實驗人員選擇要啟用哪些功能：",
+    "enable_persona": "啟用角色設定（影響語氣與觀點）",
+    "enable_scamper": "啟用 SCAMPER 創意思考技術",
+    "settings_done": "設定完成",
+
+
+    "system_intro": "系統說明",
+    "system_hint": "**請先閱讀完所有說明。**\n\n每次要關閉視窗都使用 **「開始使用！」** 按鈕關閉，**不要使用右上角的「❌」**，否則說明會一直重覆出現喔！",
+    "start_using": "開始使用！",
+    "system_welcome_title": "歡迎來到創意討論平台",
+    "system_welcome_content": "這是一個「AI 多角色討論框架」系統，幫助使用者快速發想創新點子，透過角色對話，激盪出更多點子！",
+    "system_role_title": "角色互動",
+    "system_role_content": "你會看到兩個 AI 角色一同參與討論，具有不同專業背景：\n創業家（Businessman）注重「這能不能賣」、「吸不吸引人」，\n工程師（Engineer）注重「這能不能做」、「技術會不會太難」。",
+    "system_ai_feedback_title": "AI 互相回饋",
+    "system_ai_feedback_content": "你可以選擇是否讓兩位角色互相回饋彼此的觀點。這樣的設定能讓他們針對你的想法進行更深入的延伸與對話，激發出更多靈感！同時根據討論的情況，也可以指定只讓其中一位角色參與回應。",
+    "system_saved_ideas_title": "收藏點子 & 導出",
+    "system_saved_ideas_content": "跟角色互動後出現某些喜歡某個點子嗎？可以勾選收藏之後留著之後討論！",
+    "system_free_input_title": "自由輸入",
+    "system_free_input_content": "你可以自由輸入想法，就像跟 ChatGPT 互動一樣，Agent 會依據你想法繼續跟你討論。",
+    "system_scamper_input_title": "SCAMPER 創意思考技術",
+    "system_scamper_input_content": "你可以選擇創意思考技術（SCAMPER）來延伸你選定的 idea，例如：替代、結合、修改等。",
+
+
+
+    "model_settings": "模型與 API 設定",
+    "select_model": "選擇模型",
+    "api_endpoint": "API 端點",
+    "rounds": "設定討論輪次",
+    "temperature": "設定溫度 (temperature)",
+    "system_locked": "已開始討論，設定已鎖定。",
+
+    "usage_guide": "使用說明",
+    "usage_guide_content": "這是一個結合 LLM 與多角色討論的創意發想工具，幫助你探索不同觀點、刺激靈感！\n\n### 你可以怎麼用？\n- 每一輪提供你的想法\n- AI 角色根據不同角度給出回饋與延伸想法\n- 收藏你喜歡的 Idea 並繼續討論，或是以你的想法為主導",
+    "review_guide_again": "再看一次說明",
+
+
+    "enter_api_endpoint": "請輸入 API 端點！",
+
+    "round_start_display": "請提供與「{question}」相關的創意點子，每個點子附加簡單用途即可。",
+
+    "select_question": "請選擇討論問題：",
+    "start_discussion": "開始 LLM 討論",
+
+    "integrated_message_round0": "這是第 {round} 輪討論，{question}。",
+
+    "saved_ideas": "已收藏的 Idea",
+    "no_saved_ideas": "目前沒有收藏的 Idea。",
+    "download_csv": "下載收藏的 Ideas（CSV）",
+    "saved_idea_round": "第 {round} 輪",
+    "delete_saved_idea": "刪除這個 Idea",
+    "removed_saved_ideas": "🗑️ 已移除 {count} 個收藏的 Idea",
+
+    "default_topic": "（無題目）",
+    "topic": "討論題目",
+    "idea": "Idea",
+    "saved_round": "收藏輪數",
+
+    "download_saved_ideas_csv": "下載收藏的 Ideas（CSV）",
+
+
+    "free_input": "自由輸入",
+    "scamper_input": "選擇創意思考技術",
+    "scamper": {
+        "substitute": {
+        "label": "SCAMPER - Substitute（替代）",
+        "description": "用另一種材料或方法替代原本的某個部分。",
+        "example": "用地瓜取代馬鈴薯，做出「地瓜薯條」。"
+        },
+        "combine": {
+        "label": "SCAMPER - Combine（結合）",
+        "description": "把兩個不同的產品或功能合併成新的東西。",
+        "example": "耳機+帽子，做成「內建藍牙耳機的毛帽」。"
+        },
+        "adapt": {
+        "label": "SCAMPER - Adapt（適應）",
+        "description": "將一個產品的特性應用到另一個產品上。",
+        "example": "將運動鞋的設計靈感用在辦公拖鞋上，讓久站的工作者也能獲得支撐和舒適。"
+        },
+        "modify": {
+        "label": "SCAMPER - Modify（修改）",
+        "description": "改變尺寸、形狀、顏色等，讓它更吸引人。",
+        "example": "縮小漢堡，變成迷你漢堡，適合派對小食！"
+        },
+        "put_to_use": {
+        "label": "SCAMPER - Put to another use（變更用途）",
+        "description": "讓一個東西變成完全不同的用途。",
+        "example": "用舊行李箱變成寵物床，回收再利用！"
+        },
+        "eliminate": {
+        "label": "SCAMPER - Eliminate（刪除）",
+        "description": "移除某些不必要的部分，讓產品更簡單。",
+        "example": "拿掉遊戲手柄的按鍵，改用體感控制，像是 Switch！"
+        },
+        "reverse": {
+        "label": "SCAMPER - Reverse（反轉）",
+        "description": "顛倒順序、角色，產生新的可能性。",
+        "example": "內餡放外面的「內倒披薩」，讓起司包住餅皮！"
+        }
+    },
+
+    "feedback_yes": "是",
+    "feedback_no": "否",
+    "user_feedback_free": "- **使用者輸入：**{idea}\n\n- **選擇回答的 Agent：**{agents}\n\n- **是否開啟 Agent 互相回饋：** {feedback}\n\n",
+    "user_feedback_scamper": "- **使用者選擇的創意：**「{idea}」\n\n- **使用者選擇的創意思考技術：**「{technique}」\n\n- **方法應用說明：** {description}\n\n- **選擇回答的 Agent：**{agents}\n\n- **是否開啟 Agent 互相回饋：** {feedback}\n\n",
+
+    "round_input_completed": "已完成第 {round} 輪的輸入！",
+
+    "round_idea_expander": "第 {round} 輪 AI 產生的創意點子",
+
+    "round_idea_summary": "經過這輪的討論，總結出以下幾個點子，有哪些想先收藏的嗎？",
+    "idea_saved_toast": "已收藏：{idea}（第 {round} 輪）",
+
+
+    "ai_response_settings": "AI 回應設定",
+    "enable_ai_feedback": "開啟 AI 互相回饋",
+    "ai_feedback_requires_two_agents": "⚠️ 至少需要選擇兩位 Agent 才能啟用互相回饋功能",
+
+    "select_agents": "請選擇第 {round_num} 輪回應的 Agent：",
+    "input_round_idea": "請輸入第 {round_num} 輪的想法：",
+
+    "idea_source": "選擇創意來源",
+    "current_round_ideas": "第 {round_num} 輪 AI 產生的創意點子",
+    "saved_idea_source": "已收藏的 Idea",
+
+    "select_ideas_to_extend": "請選擇您想延伸的 Idea（來源：{idea_source}）",
+    "select_creative_technique": "請選擇要使用的創意技術：",
+    "submit_selection": "送出選擇",
+
+    "technique_max_ideas": "⚙️ 技術「{technique}」最多只能選擇 {count} 個創意點子",
+
+    "scamper_selected_summary": "- 你選擇的 SCAMPER 技術：{technique}\n\n- 解釋：{description}\n\n- 例子：{example}",
+
+    "too_many_ideas_selected": "⚠️ 已超過最大選擇數量（{count} 個），請減少選擇的 Idea。",
+
+    "select_agents_for_round": "請選擇第 {round} 輪回應的 Agent："
+  },
+  "messages": {
+    "generating_uuid": "🔄 產生 Session UUID 中，請稍後...",
+    "restore_success": "成功還原之前的討論內容",
+    "no_history": "ℹ️ 沒有找到任何歷史紀錄",
+    "request_failed": "❌ 請求失敗",
+    "settings_locked": "已開始討論，設定已鎖定。",
+    "saved_idea_removed": "🗑️ 已移除 {count} 個收藏的 Idea",
+    "collected_idea": "已收藏：{idea}（第 {round_num} 輪）"
+  },
+  "questions": {
+    "placeholder": "請選擇討論問題",
+    "q1": "如果穿越空間技術存在，可能會有哪些全新的交通方式？",
+    "q2": "磚頭除了蓋房子，還能有哪些意想不到的用途？",
+    "q3": "掃帚除了掃地，還能有哪些意想不到的用途？",
+    "custom": "🔧 自訂問題",
+    "custom_input": "請輸入你的問題"
+  },
+  "csv": {
+    "topic": "討論題目",
+    "idea": "Idea",
+    "saved_round": "收藏輪數",
+    "default_topic": "（無題目）"
+  }
+}

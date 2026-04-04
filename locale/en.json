@@ -1,0 +1,169 @@
+{
+  "ui": {
+    "backup_success": "Successfully restored previous discussion content.",
+    "backup_not_found": "No historical records found.",
+    "request_failed": "Request failed.",
+
+    "page_title": "LLM + Human Discussion Framework",
+    "session_uuid": "Session UUID",
+    "feature_settings": "Feature Settings",
+    "select_features": "Please choose which features to enable first:",
+    "enable_persona": "Enable personas (affects tone and perspective)",
+    "enable_scamper": "Enable SCAMPER creative thinking",
+    "settings_done": "Done",
+
+
+    "system_intro": "System Guide",
+    "system_hint": "**Please read all the instructions first.**\n\nEvery time you want to close the window, use the **\"Start Using!\"** button to close it, **do not use the \"❌\" at the top right corner**, otherwise the instructions will keep popping up!",
+    "start_using": "Start Using!",
+    "system_welcome_title": "Welcome to the Creative Discussion Platform",
+    "system_welcome_content": "This is an \"AI Multi-Agent Discussion Framework\" system designed to help users quickly generate innovative ideas through role-based dialogues, sparking more creativity!",
+    "system_role_title": "Role Interaction",
+    "system_role_content": "You will see two AI agents participating in the discussion with different professional backgrounds:\nThe Businessman focuses on \"Can this sell?\" and \"Is it attractive?\",\nwhile the Engineer focuses on \"Can this be done?\" and \"Is the technology too difficult?\".",
+    "system_ai_feedback_title": "AI Peer Feedback",
+    "system_ai_feedback_content": "You can choose whether to enable the two agents to provide peer feedback to each other's viewpoints. This setting allows them to engage in deeper extensions and dialogues about your ideas, stimulating more inspiration! You can also specify that only one of the agents participates in the response based on the discussion context.",
+    "system_saved_ideas_title": "Saved Ideas & Export",
+    "system_saved_ideas_content": "Do you like any ideas that come up during the interaction with the agents? You can check to save them for later discussion!",
+    "system_free_input_title": "Free Input",
+    "system_free_input_content": "You can freely input your ideas, just like interacting with ChatGPT, and the agents will continue to discuss with you based on your thoughts.",
+    "system_scamper_input_title": "SCAMPER Creative Thinking Technique",
+    "system_scamper_input_content": "You can choose a creative thinking technique (SCAMPER) to extend your selected idea, such as Substitute, Combine, Adapt, Modify, Put to another use, Eliminate, and Reverse.",
+
+
+    "model_settings": "Model & API Settings",
+    "select_model": "Select model",
+    "api_endpoint": "API endpoint",
+    "rounds": "Discussion rounds",
+    "temperature": "Temperature",
+    "system_locked": "Discussion has started. Settings are locked.",
+
+    "usage_guide": "Usage Guide",
+    "usage_guide_content": "This is a creative brainstorming tool that combines LLM and multi-agent discussion to help you explore different perspectives and stimulate inspiration!\n\n### How to Use?\n- Provide your ideas for each round\n- AI agents give feedback and extended ideas from different angles\n- Save the ideas you like and continue the discussion, or take the lead with your own ideas",
+    "review_guide_again": "View Guide Again",
+
+    "round_start_display": "Please provide creative ideas related to \"{question}\" with a brief description of their use.",
+    
+    "enter_api_endpoint": "Please enter the API endpoint.",
+
+    "select_question": "Please select a discussion topic:",
+    "start_discussion": "Start LLM Discussion",
+
+    "integrated_message_round0": "This is round {round} discussion: {question}.",
+
+    "saved_ideas": "Saved Ideas",
+    "no_saved_ideas": "No saved ideas yet.",
+    "download_csv": "Download Saved Ideas (CSV)",
+    "saved_idea_round": "Round {round}",
+    "delete_saved_idea": "Delete this idea",
+    "removed_saved_ideas": "🗑️ 已移除 {count} 個收藏的 Idea",
+
+    "default_topic": "(Untitled)",
+    "topic": "討論題目",
+    "idea": "Idea",
+    "saved_round": "收藏輪數",
+
+    "download_saved_ideas_csv": "下載收藏的 Ideas（CSV）",
+
+    "free_input": "Free Input",
+    "scamper_input": "Choose a Creative Thinking Technique",
+
+    "scamper": {
+        "substitute": {
+        "label": "SCAMPER - Substitute",
+        "description": "Replace a part with a different material or method.",
+        "example": "For example: Substitute the potato with sweet potato to make \"sweet potato fries\"."
+        },
+        "combine": {
+        "label": "SCAMPER - Combine",
+        "description": "Merge two products or functions into one.",
+        "example": "For example: Combine headphones and a hat to create a hat with built-in Bluetooth headphones."
+        },
+        "adapt": {
+        "label": "SCAMPER - Adapt",
+        "description": "Apply a feature from one product to another.",
+        "example": "For example: Adapt the design of running shoes for office slippers to provide support and comfort for those who stand for long periods."
+        },
+        "modify": {
+        "label": "SCAMPER - Modify",
+        "description": "Change size, shape, or appearance to improve appeal.",
+        "example": "For example: Modify a hamburger by making it smaller into a mini burger, perfect for party snacks!"
+        },
+        "put_to_use": {
+        "label": "SCAMPER - Put to another use",
+        "description": "Use something for a completely different purpose.",
+        "example": "For example: Use an old suitcase as a pet bed, recycling it!"
+        },
+        "eliminate": {
+        "label": "SCAMPER - Eliminate",
+        "description": "Remove unnecessary parts to simplify.",
+        "example": "For example: Remove the physical buttons from a phone and switch to touch controls."
+        },
+        "reverse": {
+        "label": "SCAMPER - Reverse",
+        "description": "Reverse roles or order to create new ideas.",
+        "example": "For example: Reverse the traditional pizza by putting the toppings inside the crust to create a \"stuffed pizza\"."
+        }
+    },
+
+    "feedback_yes": "Yes",
+    "feedback_no": "No",
+    "user_feedback_free": "- **User input:** {idea}\n\n- **Selected agents:** {agents}\n\n- **AI peer feedback enabled:** {feedback}\n\n",
+    "user_feedback_scamper": "- **Selected idea:** \"{idea}\"\n\n- **Selected technique:** \"{technique}\"\n\n- **Technique explanation:** {description}\n\n- **Selected agents:** {agents}\n\n- **AI peer feedback enabled:** {feedback}\n\n",
+
+    "round_input_completed": "Completed input for round {round}.",
+
+    "round_idea_expander": "AI-generated ideas in round {round}",
+
+    "round_idea_summary": "Here are the ideas summarized from this round. Would you like to save any of them first?",
+    "idea_saved_toast": "Saved: {idea} (round {round})",
+
+    "ai_response_settings": "AI Response Settings",
+    "enable_ai_feedback": "Enable AI peer feedback",
+    "ai_feedback_requires_two_agents": "⚠️ At least two agents must be selected to enable AI peer feedback",
+
+    "select_agents": "Select the agents for round {round_num}:",
+    "input_round_idea": "Enter your idea for round {round_num}:",
+
+    "idea_source": "Choose idea source",
+    "current_round_ideas": "Ideas generated in round {round_num}",
+    "saved_idea_source": "Saved Ideas",
+
+    "select_ideas_to_extend": "Select ideas to extend (source: {idea_source})",
+    "select_creative_technique": "Select a creative thinking technique:",
+    "submit_selection": "Submit",
+
+    "technique_max_ideas": "⚙️ Technique \"{technique}\" allows selecting up to {count} idea(s)",
+
+    "scamper_selected_summary": "- Selected SCAMPER technique: {technique}\n\n- Explanation: {description}\n\n- Example: {example}",
+
+    "too_many_ideas_selected": "⚠️ You have exceeded the maximum number of selectable ideas ({count}). Please reduce your selection.",
+
+    "select_agents_for_round": "Please select the agents to respond in round {round}:"
+
+
+
+  },
+  "messages": {
+    "generating_uuid": "🔄 Generating session UUID...",
+    "restore_success": "Previous discussion restored successfully.",
+    "no_history": "ℹ️ No history found.",
+    "request_failed": "❌ Request failed",
+    "settings_locked": "Discussion has started. Settings are locked.",
+    "saved_idea_removed": "🗑️ Removed {count} saved ideas",
+    "collected_idea": "Saved: {idea} (round {round_num})"
+  },
+  "questions": {
+    "placeholder": "Please select a discussion topic",
+    "q1": "If space-warping technology existed, what new forms of transportation might emerge?",
+    "q2": "Besides building houses, what unexpected uses could bricks have?",
+    "q3": "Besides sweeping floors, what unexpected uses could brooms have?",
+    "custom": "🔧 Custom topic",
+    "custom_input": "Enter your topic"
+  },
+  "csv": {
+    "topic": "Topic",
+    "idea": "Idea",
+    "saved_round": "Saved Round",
+    "default_topic": "(Untitled)"
+  }
+}
